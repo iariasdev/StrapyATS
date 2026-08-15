@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "StrapyATS — CV Optimizer",
+  "version": "1.0.0",
+  "description": "Optimiza tu CV para cualquier oferta de LinkedIn, GetOnBoard e Indeed en 1 clic. Powered by CierraLab.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "https://*.linkedin.com/*",
+    "https://*.getonbrd.com/*",
+    "https://*.indeed.com/*",
+    "https://*.glassdoor.com/*",
+    "https://*.computrabajo.com/*",
+    "http://localhost/*"
+  ],
+  "action": {
+    "default_popup": "public/popup.html",
+    "default_title": "Optimizar Oferta con StrapyATS",
+    "default_icon": {
+      "16": "public/icon16.png",
+      "48": "public/icon48.png",
+      "128": "public/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "public/icon16.png",
+    "48": "public/icon48.png",
+    "128": "public/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.linkedin.com/*",
+        "https://*.getonbrd.com/*",
+        "https://*.indeed.com/*",
+        "https://*.glassdoor.com/*",
+        "https://*.computrabajo.com/*"
+      ],
+      "js": ["src/content_script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  }
+}

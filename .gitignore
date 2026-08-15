@@ -1,0 +1,36 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+*.egg
+
+# Env
+.env
+.env.local
+.env.production
+
+# ChromaDB persistent data
+backend/chroma_db/
+
+# Node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Private strategy notes — never push to GitHub
+OpenSource_StrapyATS.md
+ESTRATEGIA.md
+
