@@ -51,7 +51,7 @@ async def run_match_node(state: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "match_score": parsed.get("match_score", 65),
             "seniority_match": parsed.get("seniority_match", "Mid-Level"),
-            "summary_verdict": parsed.get("summary_verdict", "Candidate shows solid baseline match."),
+            "summary_verdict": parsed.get("summary_verdict", "El candidato presenta una base sólida de compatibilidad con los requisitos principales del puesto."),
             "relevant_chunks": relevant_chunks,
         }
     except Exception as e:
@@ -59,7 +59,7 @@ async def run_match_node(state: Dict[str, Any]) -> Dict[str, Any]:
         # Fallback response
         return {
             "match_score": 70,
-            "seniority_match": "Mid-Level Fit",
-            "summary_verdict": f"Automated analysis completed. Key alignment found across main core requirements.",
+            "seniority_match": "Mid-Level",
+            "summary_verdict": "Análisis completado. Se observa afinidad relevante en las responsabilidades y tecnologías clave de la oferta.",
             "relevant_chunks": relevant_chunks,
         }

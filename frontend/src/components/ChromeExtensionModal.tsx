@@ -61,13 +61,22 @@ export const ChromeExtensionModal: React.FC<ChromeExtensionModalProps> = ({
         {/* Body */}
         <div className="space-y-4 text-xs overflow-y-auto pr-1">
           
-          <div className="p-4 bg-surface-300 border-[2px] border-surface-border space-y-1.5 shadow-revi-sm">
-            <div className="flex items-center gap-2 text-white font-bold text-xs font-mono">
-              <Terminal className="w-4 h-4 text-brand-cyan" />
-              <span>Instrucciones de Instalación Local</span>
+          <div className="p-4 bg-surface-300 border-[2px] border-surface-border space-y-3 shadow-revi-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-white font-bold text-xs font-mono">
+                <Terminal className="w-4 h-4 text-brand-cyan" />
+                <span>Instalación de la Extensión</span>
+              </div>
+              <a
+                href="/strapyats-extension.zip"
+                download="strapyats-extension.zip"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-cyan text-slate-900 font-extrabold text-[11px] hover:bg-white transition-colors"
+              >
+                <span>Descargar .ZIP</span>
+              </a>
             </div>
             <p className="text-slate-400 text-xs leading-relaxed font-normal">
-              Inyecta un extractor de DOM en la pestaña activa para enviar el texto de la vacante directamente al motor de análisis con un clic.
+              Descarga el archivo ZIP, descomprímelo en tu computador y cárgalo en Chrome con estos 3 pasos:
             </p>
           </div>
 

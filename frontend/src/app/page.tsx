@@ -44,10 +44,33 @@ export default function Home() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isExtensionGuideOpen, setIsExtensionGuideOpen] = useState(false);
 
-  // Load API key and saved history on mount
+  // Wizard state
+  const [isWizardActive, setIsWizardActive] = useState<boolean>(false);
+
+  // Load API key, saved history, and check extension redirect on mount
   useEffect(() => {
     setApiKey(getSavedApiKey());
     setSavedAnalyses(getSavedAnalyses());
+
+    // Check if user came from Chrome extension
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const isFromExt = params.get('fromExtension') === '1';
+      const storedJob = localStorage.getItem('strapyats_extracted_job');
+
+      if (isFromExt || storedJob) {
+        setIsWizardActive(true);
+      }
+    }
+
+    const handleJobImport = () => {
+      setIsWizardActive(true);
+    };
+
+    window.addEventListener('strapyats_job_imported', handleJobImport);
+    return () => {
+      window.removeEventListener('strapyats_job_imported', handleJobImport);
+    };
   }, []);
 
   const handleAnalyze = async ({
@@ -149,13 +172,15 @@ export default function Home() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-10">
         
         {/* Hero Section */}
-        <Hero 
-          onLoadDemo={handleLoadDemo} 
-          onScrollToForm={() => {
-            const formEl = document.getElementById('analyzer-section');
-            if (formEl) formEl.scrollIntoView({ behavior: 'smooth' });
-          }}
-        />
+        {!isWizardActive && !analysisResult && (
+          <Hero 
+            onLoadDemo={handleLoadDemo} 
+            onScrollToForm={() => {
+              setIsWizardActive(true);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+        )}
 
         {/* Global Error Banner */}
         {errorMessage && (
@@ -189,9 +214,12 @@ export default function Home() {
         {analysisResult ? (
           <ResultsDashboard
             result={analysisResult}
-            onReset={() => setAnalysisResult(null)}
+            onReset={() => {
+              setAnalysisResult(null);
+              setIsWizardActive(false);
+            }}
           />
-        ) : (
+        ) : isWizardActive ? (
           <AnalyzerForm
             onAnalyze={handleAnalyze}
             onLoadDemo={handleLoadDemo}
@@ -199,11 +227,13 @@ export default function Home() {
             pipelineStage={pipelineStage}
             currentApiKey={apiKey}
             onOpenByok={() => setIsByokOpen(true)}
+            onOpenExtensionGuide={() => setIsExtensionGuideOpen(true)}
+            onCancel={() => setIsWizardActive(false)}
           />
-        )}
+        ) : null}
 
         {/* Technical Architecture & Specs Section */}
-        <TechProof />
+        {!isWizardActive && !analysisResult && <TechProof />}
 
       </main>
 

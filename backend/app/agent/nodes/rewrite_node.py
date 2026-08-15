@@ -45,14 +45,18 @@ async def run_rewrite_node(state: Dict[str, Any]) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"CV Rewriter Node error: {e}")
         rewritten_cv_data = {
-            "summary": "Results-driven Software Engineer with extensive experience building scalable web applications and AI integration.",
+            "summary": "Ingeniero de Software orientado a resultados con sólida trayectoria en desarrollo de arquitecturas web escalables e integración de modelos de lenguaje (LLMs).",
             "experience_bullets": [
-                "Architected and deployed asynchronous microservices reducing system latency by 35%.",
-                "Implemented automated CI/CD pipelines increasing deployment frequency by 50%.",
-                "Optimized database queries and vector indexes achieving 99.9% uptime under high traffic."
+                "Diseñó y desplegó microservicios asíncronos de alto rendimiento, reduciendo la latencia promedio del sistema en un 35%.",
+                "Implementó pipelines de CI/CD automatizados, incrementando la frecuencia de despliegues en un 50% sin tiempo de inactividad.",
+                "Optimizó consultas de bases de datos e índices vectoriales, garantizando una disponibilidad del 99.9% bajo alta concurrencia."
             ],
             "skills_added": ["FastAPI", "Docker", "ChromaDB", "LangGraph"],
-            "formatting_tips": ["Use clean single-column layout", "Include standard section headers", "Avoid images in ATS PDF"]
+            "formatting_tips": [
+                "Utiliza una estructura de una sola columna sin tablas complejas.",
+                "Usa encabezados de sección estándar (Experiencia, Educación, Habilidades).",
+                "Evita gráficos, iconos o imágenes que bloqueen los analizadores ATS."
+            ]
         }
 
     # 2. Generate Cover Letter
@@ -67,10 +71,11 @@ async def run_rewrite_node(state: Dict[str, Any]) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Cover Letter generation error: {e}")
         cover_letter_text = (
-            "Dear Hiring Manager,\n\n"
-            "I am writing to express my strong enthusiasm for this position. Based on my technical background "
-            "and proven track record delivering robust software solutions, I am confident in my ability to make an immediate positive impact.\n\n"
-            "Thank you for your time and consideration.\n\nBest regards,\nCandidate"
+            "Estimado/a Líder de Selección,\n\n"
+            "Me dirijo a ustedes con gran entusiasmo para presentar mi postulación a esta posición. "
+            "Considerando mi trayectoria en ingeniería de software y experiencia en desarrollo de soluciones tecnológicas robustas y escalables, "
+            "estoy seguro/a de poder aportar valor inmediato a los objetivos estratégicos de su equipo.\n\n"
+            "Agradezco de antemano su tiempo y consideración para revisar mi perfil.\n\nAtentamente,\nEl Candidato"
         )
 
     return {

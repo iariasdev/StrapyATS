@@ -23,6 +23,10 @@ class IPRateLimiter:
             logger.info(f"Bypassing rate limit for IP {ip_address} (BYOK active)")
             return True, 999999
 
+        # Bypass rate limit for localhost / development
+        if ip_address in ("127.0.0.1", "localhost", "::1"):
+            return True, 999999
+
         today = date.today()
         count, last_date = self.records.get(ip_address, (0, today))
 

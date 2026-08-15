@@ -44,25 +44,15 @@ export const Hero: React.FC<HeroProps> = ({
         </p>
       </div>
 
-      {/* Action Buttons (Celeste Revi Style) */}
-      <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+      {/* Action Button */}
+      <div className="flex items-center justify-center pt-2">
         <button
           onClick={handleScroll}
-          className="revi-btn h-12 px-7 bg-brand-primary hover:bg-brand-hover text-white text-sm font-extrabold shadow-revi"
+          className="revi-btn h-12 px-8 bg-brand-primary hover:bg-brand-hover text-white text-sm font-extrabold shadow-revi"
         >
-          <span>Auditar mi CV Gratis</span>
+          <span>Auditar mi CV</span>
           <ArrowRight className="w-4 h-4 ml-2 stroke-[3]" />
         </button>
-
-        {onLoadDemo && (
-          <button
-            onClick={onLoadDemo}
-            className="revi-btn h-12 px-6 bg-surface-100 hover:bg-surface-50 text-slate-200 text-sm font-bold shadow-revi"
-          >
-            <Zap className="w-4 h-4 text-brand-cyan mr-2" />
-            <span>Cargar Datos Demo</span>
-          </button>
-        )}
       </div>
 
       {/* 3 Minimalist Trust Points */}

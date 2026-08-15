@@ -46,29 +46,29 @@ async def run_interview_node(state: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "interview_questions": [
                 {
-                    "question": "How do you handle memory management and vector indexing efficiency in serverless deployments?",
-                    "focus_area": "System Architecture & Performance",
-                    "suggested_answer_tip": "Discuss using persistent disk clients (ChromaDB) over in-memory instances to stay within RAM limits."
+                    "question": "¿Cómo gestionas el consumo de memoria y la eficiencia de índices vectoriales en despliegues serverless o contenedores?",
+                    "focus_area": "Arquitectura de Sistemas & Rendimiento",
+                    "suggested_answer_tip": "Menciona el uso de almacenamiento persistente en disco (ej. ChromaDB PersistentClient) frente a instancias en memoria para evitar desbordamientos de RAM."
                 },
                 {
-                    "question": "Can you walk us through how you trace LLM latency and token costs across multi-node pipelines?",
-                    "focus_area": "AI Observability & Cost Control",
-                    "suggested_answer_tip": "Explain integrating tools like Langfuse Cloud to trace graph execution nodes."
+                    "question": "¿Cómo auditas y trazas la latencia y costos de tokens en pipelines de IA multi-agente?",
+                    "focus_area": "Observabilidad de LLMs & FinOps",
+                    "suggested_answer_tip": "Explica la integración de herramientas de observabilidad como Langfuse para auditar la ejecución nodo a nodo y la latencia P95."
                 },
                 {
-                    "question": "How do you ensure zero-cost scaling when serving AI applications under high traffic?",
-                    "focus_area": "FinOps & Cloud Architecture",
-                    "suggested_answer_tip": "Highlight client-side heavy rendering (e.g. PDF generation) and GCP Cloud Run auto-scaling to zero."
+                    "question": "¿Qué estrategias aplicas para escalar una aplicación de IA a costo $0 aprovechando capas gratuitas (Free Tiers)?",
+                    "focus_area": "FinOps & Arquitectura Cloud",
+                    "suggested_answer_tip": "Destaca el renderizado de PDFs en el cliente (evitando Puppeteer en el servidor) y el escalado a cero en Google Cloud Run o similar."
                 },
                 {
-                    "question": "Describe a scenario where you had to bridge an extracted job posting with a candidate's profile dynamically.",
-                    "focus_area": "RAG & Document Ingestion",
-                    "suggested_answer_tip": "Talk about Chrome Extension Manifest v3 content scripts and vector similarity chunk matching."
+                    "question": "Describe cómo conectarías de forma dinámica una oferta extraída con el perfil de un postulante.",
+                    "focus_area": "RAG & Extracción de Documentos",
+                    "suggested_answer_tip": "Aborda el uso de extensiones de navegador para lectura limpia del DOM y búsqueda por similitud semántica con embeddings vectoriales."
                 },
                 {
-                    "question": "How do you prevent rate-limit errors when consuming external AI APIs?",
-                    "focus_area": "API Resilience & Rate Limiting",
-                    "suggested_answer_tip": "Explain IP-based throttling, request queuing, and Bring Your Own Key (BYOK) fallback mechanisms."
+                    "question": "¿Cómo evitas bloqueos por rate limiting al consumir APIs de LLMs en producción?",
+                    "focus_area": "Resiliencia de APIs & Control de Tráfico",
+                    "suggested_answer_tip": "Explica técnicas de limitación de tasa por IP, colas de procesamiento asíncronas y soporte de Bring Your Own Key (BYOK)."
                 }
             ]
         }

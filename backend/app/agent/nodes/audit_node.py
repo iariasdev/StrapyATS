@@ -42,16 +42,16 @@ async def run_audit_node(state: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "ats_gaps": [
                 {
-                    "keyword": "CI/CD & Cloud Deployment",
+                    "keyword": "CI/CD & Despliegue en la Nube",
                     "importance": "high",
-                    "context": "The role requires automated pipeline management.",
-                    "recommendation": "Mention GitHub Actions or Docker deployment experiences."
+                    "context": "El puesto valora la gestión automatizada de pipelines y contenedores.",
+                    "recommendation": "Menciona experiencia con Docker, GitHub Actions o servicios en la nube en tus proyectos recientes."
                 },
                 {
-                    "keyword": "Metrics & KPI Tracking",
+                    "keyword": "Métricas de Impacto y Rendimiento",
                     "importance": "medium",
-                    "context": "Quantifiable impact is required by top recruiters.",
-                    "recommendation": "Add percentage improvements or latencies to your bullet points."
+                    "context": "Los reclutadores técnicos y filtros ATS priorizan resultados medibles.",
+                    "recommendation": "Añade porcentajes de optimización, reducción de latencia o volumen de usuarios en tus logros laborales."
                 }
             ]
         }
