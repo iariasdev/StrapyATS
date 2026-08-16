@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ExternalLink, FileText, Github, ShieldCheck } from 'lucide-react';
+import { ExternalLink, Github, ShieldCheck } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   const currentYear = new Date().getFullYear();
@@ -15,9 +15,13 @@ export const Footer: React.FC = () => {
           
           {/* Brand & CierraLab Attribution */}
           <div className="md:col-span-2 space-y-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 bg-brand-primary border-[2px] border-surface-border flex items-center justify-center text-white shadow-revi-sm">
-                <FileText className="w-4 h-4 stroke-[2.5]" />
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-green-400 to-blue-500 ring-1 ring-white/30 dark:ring-white/20 shrink-0 shadow-revi-sm flex items-center justify-center p-0.5">
+                <img 
+                  src="/logo1whitenobackground.png" 
+                  alt="CierraLab Logo" 
+                  className="w-full h-full object-cover rounded-full" 
+                />
               </div>
               <span className="font-extrabold text-lg text-white font-display">
                 Strapy<span className="text-brand-cyan">ATS</span>

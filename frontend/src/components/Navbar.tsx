@@ -6,8 +6,7 @@ import { HealthResponse } from '@/lib/types';
 import { 
   Key, 
   History, 
-  Chrome, 
-  FileText
+  Chrome
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -56,9 +55,13 @@ export const Navbar: React.FC<NavbarProps> = ({
         
         {/* Brand & CierraLab Tool Tag */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => window.location.href = '/'}>
-            <div className="w-9 h-9 bg-brand-primary border-[2px] border-surface-border flex items-center justify-center text-white shadow-revi-sm">
-              <FileText className="w-5 h-5 stroke-[2.5]" />
+          <div className="flex items-center gap-3 cursor-pointer hover:opacity-85 transition-opacity" onClick={() => window.location.href = '/'}>
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-green-400 to-blue-500 ring-1 ring-white/30 dark:ring-white/20 shrink-0 shadow-revi-sm flex items-center justify-center p-0.5">
+              <img 
+                src="/logo1whitenobackground.png" 
+                alt="CierraLab Logo" 
+                className="w-full h-full object-cover rounded-full" 
+              />
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
