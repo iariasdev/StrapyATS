@@ -10,7 +10,7 @@ class Settings(BaseSettings):
 
     # Google AI Studio / Gemini API Key
     GOOGLE_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_MODEL: str = "gemini-3.5-flash-lite"
 
     # Langfuse Observability
     LANGFUSE_PUBLIC_KEY: str = ""
@@ -25,8 +25,10 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "https://strapyats.vercel.app",
+        "https://strapy-h8qw2jrqk-kirfteh-gmailcoms-projects.vercel.app",
         "chrome-extension://*",
     ]
+    ALLOWED_ORIGIN_REGEX: str = r"https://.*\.vercel\.app"
 
     def get_effective_google_api_key(self, byok_key: Optional[str] = None) -> str:
         """Returns BYOK key if provided, otherwise the global backend GOOGLE_API_KEY."""

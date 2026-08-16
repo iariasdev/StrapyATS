@@ -8,11 +8,8 @@ logger = logging.getLogger("strapy_ats.llm")
 # Primary and Fallback model hierarchy
 FALLBACK_MODELS = [
     settings.GEMINI_MODEL,
-    "gemini-3.5-flash-lite",
     "gemini-3.1-flash-lite",
     "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-1.5-flash",
 ]
 
 def get_gemini_llm(api_key: str, temperature: float = 0.3, model_override: Optional[str] = None) -> ChatGoogleGenerativeAI:
