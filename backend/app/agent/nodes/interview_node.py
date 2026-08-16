@@ -20,18 +20,18 @@ async def run_interview_node(state: Dict[str, Any]) -> Dict[str, Any]:
     gaps_text = "\n".join([f"- {g.get('keyword')}: {g.get('context')}" for g in ats_gaps if isinstance(g, dict)])
 
     try:
-        llm = ChatGoogleGenerativeAI(
-            model=settings.GEMINI_MODEL,
-            google_api_key=api_key,
-            temperature=0.4,
-        )
+        from app.agent.llm import invoke_gemini_with_fallback
         prompt = INTERVIEW_SIMULATOR_PROMPT.format(
             job_offer_text=job_offer_text,
             cv_text=cv_text[:3000],
             ats_gaps_text=gaps_text,
         )
-        response = await llm.ainvoke(prompt)
-        content = str(response.content).strip()
+        content = await invoke_gemini_with_fallback(
+            prompt, 
+            api_key=api_key, 
+            temperature=0.4,
+            preferred_model=state.get("preferred_model")
+        )
 
         if "```json" in content:
             content = content.split("```json")[1].split("```")[0].strip()

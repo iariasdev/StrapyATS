@@ -10,7 +10,7 @@ class Settings(BaseSettings):
 
     # Google AI Studio / Gemini API Key
     GOOGLE_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-1.5-flash"
+    GEMINI_MODEL: str = "gemini-3.5-flash-lite"
 
     # Langfuse Observability
     LANGFUSE_PUBLIC_KEY: str = ""

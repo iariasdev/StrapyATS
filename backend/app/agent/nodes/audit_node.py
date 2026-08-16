@@ -17,17 +17,17 @@ async def run_audit_node(state: Dict[str, Any]) -> Dict[str, Any]:
     api_key = state.get("effective_api_key", "")
 
     try:
-        llm = ChatGoogleGenerativeAI(
-            model=settings.GEMINI_MODEL,
-            google_api_key=api_key,
-            temperature=0.3,
-        )
+        from app.agent.llm import invoke_gemini_with_fallback
         prompt = ATS_AUDITOR_PROMPT.format(
             job_offer_text=job_offer_text,
             cv_text=cv_text[:3000],
         )
-        response = await llm.ainvoke(prompt)
-        content = str(response.content).strip()
+        content = await invoke_gemini_with_fallback(
+            prompt, 
+            api_key=api_key, 
+            temperature=0.3,
+            preferred_model=state.get("preferred_model")
+        )
 
         if "```json" in content:
             content = content.split("```json")[1].split("```")[0].strip()

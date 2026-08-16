@@ -7,9 +7,11 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 const BYOK_STORAGE_KEY = 'strapy_ats_byok_key';
+const BYOK_MODEL_KEY = 'strapy_ats_byok_model';
 const HISTORY_STORAGE_KEY = 'strapy_ats_history';
 const SAVED_CV_KEY = 'strapy_ats_saved_cv';
 const EXTRACTED_JOB_KEY = 'strapyats_extracted_job';
+const USER_PROFILE_KEY = 'strapyats_user_profile';
 
 export interface SavedCVData {
   name: string;
@@ -34,6 +36,63 @@ export function setSavedApiKey(key: string): void {
 export function removeSavedApiKey(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(BYOK_STORAGE_KEY);
+}
+
+export function getSavedModel(): string {
+  if (typeof window === 'undefined') return 'gemini-3.5-flash-lite';
+  return localStorage.getItem(BYOK_MODEL_KEY) || 'gemini-3.5-flash-lite';
+}
+
+export function setSavedModel(model: string): void {
+  if (typeof window === 'undefined') return;
+  if (model.trim()) {
+    localStorage.setItem(BYOK_MODEL_KEY, model.trim());
+  } else {
+    localStorage.removeItem(BYOK_MODEL_KEY);
+  }
+}
+
+/* =================================================== */
+/* PERSISTENT CANDIDATE PROFILE (Name, email, etc.)   */
+/* =================================================== */
+export interface UserProfileData {
+  name: string;
+  email: string;
+  phone: string;
+  location: string;
+  linkedin: string;
+}
+
+export function getUserProfile(): UserProfileData {
+  if (typeof window === 'undefined') {
+    return {
+      name: 'Alex R. Dev',
+      email: 'alex.dev@example.com',
+      phone: '+56 9 1234 5678',
+      location: 'Santiago, Chile / Remoto',
+      linkedin: 'linkedin.com/in/alexdev',
+    };
+  }
+  try {
+    const raw = localStorage.getItem(USER_PROFILE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // ignore
+  }
+  return {
+    name: 'Alex R. Dev',
+    email: 'alex.dev@example.com',
+    phone: '+56 9 1234 5678',
+    location: 'Santiago, Chile / Remoto',
+    linkedin: 'linkedin.com/in/alexdev',
+  };
+}
+
+export function setUserProfile(profile: Partial<UserProfileData>): void {
+  if (typeof window === 'undefined') return;
+  const current = getUserProfile();
+  const updated = { ...current, ...profile };
+  localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(updated));
 }
 
 /* =================================================== */
@@ -99,14 +158,24 @@ export function getSavedAnalyses(): SavedAnalysis[] {
   }
 }
 
-export function saveAnalysisResult(result: AnalyzeResponse, roleSnippet?: string): SavedAnalysis {
+export function saveAnalysisResult(
+  result: AnalyzeResponse, 
+  roleSnippet?: string,
+  jobUrl?: string,
+  companyName?: string
+): SavedAnalysis {
   const history = getSavedAnalyses();
   const title = roleSnippet?.trim().slice(0, 45) || `Análisis ATS (${result.seniority_match})`;
   
+  if (jobUrl && !result.job_url) result.job_url = jobUrl;
+  if (companyName && !result.company_name) result.company_name = companyName;
+
   const newItem: SavedAnalysis = {
     id: `scan-${Date.now()}`,
     timestamp: Date.now(),
     roleTitle: title,
+    companyName: companyName || result.company_name || undefined,
+    jobUrl: jobUrl || result.job_url || undefined,
     matchScore: result.match_score,
     seniorityMatch: result.seniority_match,
     result,
@@ -117,6 +186,14 @@ export function saveAnalysisResult(result: AnalyzeResponse, roleSnippet?: string
     localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(updated));
   }
   return newItem;
+}
+
+export function deleteSavedAnalysis(id: string): SavedAnalysis[] {
+  if (typeof window === 'undefined') return [];
+  const history = getSavedAnalyses();
+  const updated = history.filter(item => item.id !== id);
+  localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(updated));
+  return updated;
 }
 
 export function clearSavedAnalyses(): void {

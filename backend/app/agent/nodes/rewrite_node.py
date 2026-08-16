@@ -19,11 +19,7 @@ async def run_rewrite_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     gaps_text = "\n".join([f"- {g.get('keyword')}: {g.get('context')}" for g in ats_gaps if isinstance(g, dict)])
 
-    llm = ChatGoogleGenerativeAI(
-        model=settings.GEMINI_MODEL,
-        google_api_key=api_key,
-        temperature=0.4,
-    )
+    from app.agent.llm import invoke_gemini_with_fallback
 
     # 1. Rewrite CV Sections
     rewritten_cv_data = {}
@@ -33,8 +29,12 @@ async def run_rewrite_node(state: Dict[str, Any]) -> Dict[str, Any]:
             cv_text=cv_text[:3000],
             ats_gaps_text=gaps_text,
         )
-        response = await llm.ainvoke(rewrite_prompt)
-        content = str(response.content).strip()
+        content = await invoke_gemini_with_fallback(
+            rewrite_prompt, 
+            api_key=api_key, 
+            temperature=0.4,
+            preferred_model=state.get("preferred_model")
+        )
 
         if "```json" in content:
             content = content.split("```json")[1].split("```")[0].strip()
@@ -66,8 +66,12 @@ async def run_rewrite_node(state: Dict[str, Any]) -> Dict[str, Any]:
             job_offer_text=job_offer_text,
             cv_text=cv_text[:3000],
         )
-        cover_res = await llm.ainvoke(cover_prompt)
-        cover_letter_text = str(cover_res.content).strip()
+        cover_letter_text = await invoke_gemini_with_fallback(
+            cover_prompt, 
+            api_key=api_key, 
+            temperature=0.5,
+            preferred_model=state.get("preferred_model")
+        )
     except Exception as e:
         logger.error(f"Cover Letter generation error: {e}")
         cover_letter_text = (

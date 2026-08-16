@@ -4,7 +4,9 @@ import React, { useState } from 'react';
 import { AnalyzeResponse, ATSGap } from '@/lib/types';
 import { ScoreGauge } from './ScoreGauge';
 import { PrintableCV } from './PrintableCV';
-import { copyToClipboard } from '@/lib/pdf-export';
+import { copyToClipboard, downloadPdfFile } from '@/lib/pdf-export';
+import { generateATSPdf } from '@/lib/pdf-generator';
+import { getUserProfile } from '@/lib/utils';
 import { 
   FileText, 
   Target, 
@@ -18,7 +20,8 @@ import {
   ChevronUp, 
   Filter,
   Sparkles,
-  RotateCcw
+  RotateCcw,
+  Zap
 } from 'lucide-react';
 
 interface ResultsDashboardProps {
@@ -36,9 +39,54 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
   const [gapFilter, setGapFilter] = useState<'all' | 'critical' | 'high' | 'medium'>('all');
   const [copiedCoverLetter, setCopiedCoverLetter] = useState(false);
   const [copiedGapIndex, setCopiedGapIndex] = useState<number | null>(null);
+  const [isApplying, setIsApplying] = useState(false);
   const [expandedQuestions, setExpandedQuestions] = useState<Record<number, boolean>>({
     0: true,
   });
+
+  const handleAutoApply = () => {
+    if (!result.job_url) return;
+    setIsApplying(true);
+
+    const profile = getUserProfile();
+    const candidateName = profile.name || 'Candidato';
+    const fileName = `CV_${candidateName.replace(/\s+/g, '_')}_ATS.pdf`;
+
+    // 1. Generate ATS PDF binary
+    const pdfData = generateATSPdf({
+      candidate: {
+        name: candidateName,
+        title: result.seniority_match || 'Software Engineer',
+        email: profile.email || '',
+        phone: profile.phone || '',
+        location: profile.location || '',
+        linkedin: profile.linkedin || ''
+      },
+      summary: result.rewritten_cv?.summary || '',
+      skills: result.rewritten_cv?.skills_added || [],
+      bullets: result.rewritten_cv?.experience_bullets || []
+    });
+
+    // 2. Trigger automatic local PDF download
+    downloadPdfFile(pdfData.blob, fileName);
+
+    // 3. Post event to Chrome Extension web_bridge for automatic LinkedIn DOM fill
+    window.postMessage({
+      type: 'STRAPYATS_TRIGGER_AUTO_APPLY',
+      payload: {
+        targetUrl: result.job_url,
+        candidate: profile,
+        fileName: fileName,
+        pdfBase64: pdfData.base64
+      }
+    }, '*');
+
+    // 4. Open the job listing tab
+    setTimeout(() => {
+      window.open(result.job_url || '', '_blank');
+      setTimeout(() => setIsApplying(false), 2000);
+    }, 400);
+  };
 
   const handleCopyCoverLetter = () => {
     copyToClipboard(result.cover_letter);
@@ -153,18 +201,59 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
 
         </div>
 
-        <button
-          onClick={onReset}
-          className="revi-btn h-10 px-4 text-xs bg-surface-200 hover:bg-surface-100 text-slate-300"
-        >
-          <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
-          <span>Nueva Auditoría</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {result.job_url && (
+            <button
+              onClick={handleAutoApply}
+              disabled={isApplying}
+              className="revi-btn h-10 px-4 text-xs bg-brand-cyan text-slate-950 font-black shadow-revi hover:bg-cyan-300 transition-all flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <Zap className={`w-3.5 h-3.5 fill-slate-950 ${isApplying ? 'animate-bounce' : ''}`} />
+              <span>{isApplying ? 'Preparando Postulación...' : `Postular en ${result.company_name || 'LinkedIn'}`}</span>
+            </button>
+          )}
+
+          <button
+            onClick={onReset}
+            className="revi-btn h-10 px-4 text-xs bg-surface-200 hover:bg-surface-100 text-slate-300"
+          >
+            <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+            <span>Nueva Auditoría</span>
+          </button>
+        </div>
       </div>
 
       {/* Tab 1: CV Optimizado */}
       {activeTab === 'cv' && (
         <div className="space-y-6">
+          {/* Postulation Workflow Assistant */}
+          {result.job_url && (
+            <div className="revi-card p-4 sm:p-5 bg-surface-200 border-[2px] border-brand-cyan/40 shadow-revi-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 bg-brand-cyan text-slate-950 border-[2px] border-surface-border shrink-0 shadow-revi-sm">
+                  <Sparkles className="w-5 h-5 stroke-[2.5]" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-xs font-black uppercase text-white font-mono tracking-wide">
+                    Postulación Inteligente en 1 Clic
+                  </h4>
+                  <p className="text-xs text-slate-300">
+                    Al hacer clic en <strong>&quot;Postular en {result.company_name || 'LinkedIn'}&quot;</strong>, StrapyATS descargará tu CV en PDF, abrirá la oferta en LinkedIn e inyectará automáticamente tu teléfono y tu nuevo CV en el formulario.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={handleAutoApply}
+                disabled={isApplying}
+                className="revi-btn h-10 px-5 text-xs bg-brand-cyan text-slate-950 font-black shadow-revi hover:bg-cyan-300 whitespace-nowrap shrink-0 flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <Zap className={`w-3.5 h-3.5 fill-slate-950 ${isApplying ? 'animate-bounce' : ''}`} />
+                <span>{isApplying ? 'Iniciando...' : '⚡ Postular Automáticamente'}</span>
+              </button>
+            </div>
+          )}
+
           <PrintableCV 
             rewrittenCv={result.rewritten_cv} 
             seniorityMatch={result.seniority_match}

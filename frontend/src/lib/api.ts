@@ -29,6 +29,7 @@ export interface AnalyzePayload {
   cvText?: string;
   jobOfferText: string;
   byokApiKey?: string;
+  preferredModel?: string;
 }
 
 export async function analyzeCV(payload: AnalyzePayload): Promise<AnalyzeResponse> {
@@ -50,6 +51,10 @@ export async function analyzeCV(payload: AnalyzePayload): Promise<AnalyzeRespons
 
   if (payload.byokApiKey && payload.byokApiKey.trim()) {
     formData.append('byok_api_key', payload.byokApiKey.trim());
+  }
+
+  if (payload.preferredModel && payload.preferredModel.trim()) {
+    formData.append('model_name', payload.preferredModel.trim());
   }
 
   const endpoint = `${API_BASE_URL}/analyze`;
@@ -179,3 +184,49 @@ Candidato Destacado — Powered by StrapyATS`,
     rate_limit_remaining: 2,
   };
 }
+
+export async function extractPdfText(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(`${API_BASE_URL}/extract-pdf-text`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => null);
+    throw new Error(errorData?.detail || `Error al extraer texto del PDF (${res.status})`);
+  }
+
+  const data = await res.json();
+  return data.text || '';
+}
+
+export interface ExtractedJobResult {
+  title: string;
+  company: string;
+  location?: string;
+  full_text: string;
+  url: string;
+  source: string;
+}
+
+export async function extractJobFromUrl(url: string): Promise<ExtractedJobResult> {
+  const res = await fetch(`${API_BASE_URL}/extract-job-url`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ url }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => null);
+    throw new Error(errorData?.detail || `Error al extraer la oferta (${res.status})`);
+  }
+
+  return await res.json();
+}
+
+

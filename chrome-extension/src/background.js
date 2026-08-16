@@ -45,3 +45,32 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     });
   }
 });
+
+// Handle messages from Web Bridge or Popup
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'OPEN_AND_APPLY_JOB' && request.url) {
+    chrome.tabs.query({}, (tabs) => {
+      const existingTab = tabs.find(t => t.url && (t.url.includes(request.url) || request.url.includes(t.url)));
+      if (existingTab && existingTab.id) {
+        chrome.tabs.update(existingTab.id, { active: true }, (tab) => {
+          chrome.windows.update(tab.windowId, { focused: true });
+          chrome.tabs.sendMessage(existingTab.id, { action: 'TRIGGER_AUTO_APPLY' });
+        });
+      } else {
+        chrome.tabs.create({ url: request.url, active: true }, (newTab) => {
+          chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
+            if (tabId === newTab.id && info.status === 'complete') {
+              chrome.tabs.onUpdated.removeListener(listener);
+              setTimeout(() => {
+                chrome.tabs.sendMessage(newTab.id, { action: 'TRIGGER_AUTO_APPLY' });
+              }, 1000);
+            }
+          });
+        });
+      }
+    });
+    sendResponse({ success: true });
+  }
+  return true;
+});
+

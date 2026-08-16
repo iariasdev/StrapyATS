@@ -133,6 +133,155 @@
     return extractGenericJob();
   }
 
+  // ----------------------------------------------------
+  // LinkedIn Easy Apply Automation Engine (StrapyATS)
+  // ----------------------------------------------------
+  function showWidget(message, type = 'info') {
+    let widget = document.getElementById('strapyats-autoapply-banner');
+    if (!widget) {
+      widget = document.createElement('div');
+      widget.id = 'strapyats-autoapply-banner';
+      widget.style.cssText = `
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 9999999;
+        background: #090d16;
+        border: 2px solid #0085f4;
+        color: #fff;
+        padding: 14px 18px;
+        border-radius: 4px;
+        box-shadow: 4px 4px 0px #000;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 13px;
+        max-width: 400px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      `;
+      document.body.appendChild(widget);
+    }
+    widget.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        <span style="font-weight: 900; color: #00d2ff; font-family: monospace; font-size: 11px; text-transform: uppercase;">
+          ⚡ StrapyATS Autofill
+        </span>
+        <button id="strapyats-close-widget" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 14px;">✕</button>
+      </div>
+      <div style="color: ${type === 'success' ? '#4ade80' : type === 'error' ? '#f87171' : '#e2e8f0'}; font-weight: 600; line-height: 1.4;">
+        ${message}
+      </div>
+    `;
+    document.getElementById('strapyats-close-widget')?.addEventListener('click', () => widget.remove());
+  }
+
+  function runLinkedInAutoApply() {
+    if (!window.location.hostname.includes('linkedin.com')) return;
+
+    chrome.storage.local.get(['strapyats_auto_apply'], (res) => {
+      const applyData = res.strapyats_auto_apply;
+      if (!applyData || applyData.status !== 'pending') return;
+
+      showWidget('⚡ Iniciando postulación con tu CV Optimizado...');
+
+      // Step 1: Click Easy Apply button if modal not yet open
+      const clickApplyButton = () => {
+        const modal = document.querySelector('.jobs-easy-apply-modal, div[data-easy-apply-modal], .artdeco-modal');
+        if (modal) return;
+
+        const applyBtn = document.querySelector(
+          'button.jobs-apply-button, button[aria-label*="Solicitud sencilla"], button[aria-label*="Easy Apply"], button.jobs-apply-button--top-card'
+        );
+        if (applyBtn) {
+          showWidget('Abriendo formulario de Solicitud Sencilla...');
+          applyBtn.click();
+        }
+      };
+
+      clickApplyButton();
+
+      // Step 2 & 3: Watch modal progress (Phone fill + CV upload)
+      let attempts = 0;
+      const interval = setInterval(() => {
+        attempts++;
+        if (attempts > 60) {
+          clearInterval(interval);
+          return;
+        }
+
+        const modal = document.querySelector('.jobs-easy-apply-modal, div[data-easy-apply-modal], .artdeco-modal');
+        if (!modal) {
+          clickApplyButton();
+          return;
+        }
+
+        // 1. Phone number fill (Step 1)
+        const phoneInput = modal.querySelector('input[id*="phoneNumber"], input[id*="phone-number"], input[name*="phoneNumber"], input[type="tel"]');
+        if (phoneInput && (!phoneInput.value || phoneInput.value.trim().length < 4)) {
+          if (applyData.candidate && applyData.candidate.phone) {
+            phoneInput.value = applyData.candidate.phone;
+            phoneInput.dispatchEvent(new Event('input', { bubbles: true }));
+            phoneInput.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        }
+
+        // 2. File input check (Step 2: Currículum)
+        const fileInput = modal.querySelector('input[type="file"][id*="jobs-document-upload"], input[type="file"][name*="file"], input[type="file"]');
+        if (fileInput && !fileInput.dataset.strapyatsInjected) {
+          fileInput.dataset.strapyatsInjected = 'true';
+          showWidget('Inyectando CV adaptado en LinkedIn...');
+
+          try {
+            const byteCharacters = atob(applyData.pdfBase64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'application/pdf' });
+            const fileName = applyData.fileName || 'CV_Optimizado_ATS.pdf';
+            const file = new File([blob], fileName, { type: 'application/pdf', lastModified: Date.now() });
+
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            fileInput.files = dataTransfer.files;
+            fileInput.dispatchEvent(new Event('input', { bubbles: true }));
+            fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+            showWidget(`✅ CV Optimizado cargado con éxito (${fileName}). Responde las preguntas finales de la empresa.`, 'success');
+
+            chrome.storage.local.set({
+              strapyats_auto_apply: { ...applyData, status: 'completed' }
+            });
+
+            clearInterval(interval);
+          } catch (err) {
+            console.error('Error al inyectar CV en LinkedIn:', err);
+            showWidget('No se pudo adjuntar el PDF automáticamente. Puedes seleccionarlo manualmente con "Cargar currículum".', 'error');
+            clearInterval(interval);
+          }
+          return;
+        }
+
+        // 3. Next step button click if we are on step 1 without file input
+        if (!fileInput) {
+          const nextBtn = modal.querySelector('button.artdeco-button--primary, button[aria-label*="siguiente"], button[aria-label*="Next"]');
+          if (nextBtn && nextBtn.innerText && nextBtn.innerText.match(/siguiente|next/i)) {
+            showWidget('Avanzando al paso de currículum...');
+            nextBtn.click();
+          }
+        }
+      }, 500);
+    });
+  }
+
+  // Check on load
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    runLinkedInAutoApply();
+  } else {
+    document.addEventListener('DOMContentLoaded', runLinkedInAutoApply);
+  }
+
   // Listener for messages from popup or background service worker
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'EXTRACT_JOB' || request.action === 'GET_JOB_TEXT') {
@@ -149,6 +298,9 @@
           error: 'No se detectó una descripción de empleo estructurada en esta página. Puedes seleccionar el texto manualmente y abrir StrapyATS.'
         });
       }
+    } else if (request.action === 'TRIGGER_AUTO_APPLY') {
+      runLinkedInAutoApply();
+      sendResponse({ success: true });
     }
     return true;
   });

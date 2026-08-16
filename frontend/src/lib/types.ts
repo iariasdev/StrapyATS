@@ -30,12 +30,15 @@ export interface AnalyzeResponse {
   interview_questions: InterviewQuestion[];
   langfuse_trace_url?: string | null;
   rate_limit_remaining?: number | null;
+  job_url?: string | null;
+  company_name?: string | null;
 }
 
 export interface AnalyzeRequest {
   job_offer_text: string;
   cv_text?: string;
   byok_api_key?: string;
+  model_name?: string;
 }
 
 export interface HealthResponse {
@@ -45,10 +48,20 @@ export interface HealthResponse {
   chroma_db_status: string;
 }
 
+export interface UserProfile {
+  name: string;
+  email: string;
+  phone: string;
+  location: string;
+  linkedin: string;
+}
+
 export interface SavedAnalysis {
   id: string;
   timestamp: number;
   roleTitle: string;
+  companyName?: string;
+  jobUrl?: string;
   matchScore: number;
   seniorityMatch: string;
   result: AnalyzeResponse;

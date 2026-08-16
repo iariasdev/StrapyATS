@@ -3,6 +3,18 @@
  * StrapyATS generates ATS-optimized resume PDFs directly in the browser.
  */
 
+export function downloadPdfFile(blob: Blob, fileName = 'CV_Optimizado_ATS.pdf'): void {
+  if (typeof window === 'undefined') return;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export function printResumeDocument(): void {
   if (typeof window === 'undefined') return;
   

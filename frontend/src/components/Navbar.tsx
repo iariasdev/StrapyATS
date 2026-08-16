@@ -56,7 +56,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         
         {/* Brand & CierraLab Tool Tag */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+          <div className="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => window.location.href = '/'}>
             <div className="w-9 h-9 bg-brand-primary border-[2px] border-surface-border flex items-center justify-center text-white shadow-revi-sm">
               <FileText className="w-5 h-5 stroke-[2.5]" />
             </div>

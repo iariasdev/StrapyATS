@@ -21,8 +21,10 @@ import {
 } from '@/lib/api';
 import { 
   getSavedApiKey, 
+  getSavedModel,
   getSavedAnalyses, 
   saveAnalysisResult, 
+  deleteSavedAnalysis,
   clearSavedAnalyses 
 } from '@/lib/utils';
 import { 
@@ -56,10 +58,16 @@ export default function Home() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const isFromExt = params.get('fromExtension') === '1';
-      const storedJob = localStorage.getItem('strapyats_extracted_job');
-
-      if (isFromExt || storedJob) {
-        setIsWizardActive(true);
+      
+      if (isFromExt) {
+        const storedJob = localStorage.getItem('strapyats_extracted_job');
+        if (storedJob) {
+          setIsWizardActive(true);
+        }
+      } else {
+        // Only keep it if it was explicitly sent from the extension right now
+        // Otherwise, clear it so it doesn't stick around on normal visits
+        localStorage.removeItem('strapyats_extracted_job');
       }
     }
 
@@ -77,10 +85,14 @@ export default function Home() {
     cvFile,
     cvText,
     jobOfferText,
+    jobUrl,
+    companyName,
   }: {
     cvFile?: File | null;
     cvText?: string;
     jobOfferText: string;
+    jobUrl?: string | null;
+    companyName?: string | null;
   }) => {
     setIsLoading(true);
     setErrorMessage(null);
@@ -98,6 +110,7 @@ export default function Home() {
         cvText,
         jobOfferText,
         byokApiKey: apiKey,
+        preferredModel: getSavedModel(),
       });
 
       clearTimeout(stageTimer1);
@@ -106,11 +119,19 @@ export default function Home() {
       clearTimeout(stageTimer4);
       clearTimeout(stageTimer5);
 
+      if (jobUrl) response.job_url = jobUrl;
+      if (companyName) response.company_name = companyName;
+
       setPipelineStage('completed');
       setAnalysisResult(response);
 
       // Save to local storage history
-      saveAnalysisResult(response, jobOfferText.split('\n')[0]);
+      saveAnalysisResult(
+        response, 
+        jobOfferText.split('\n')[0],
+        jobUrl || undefined,
+        companyName || undefined
+      );
       setSavedAnalyses(getSavedAnalyses());
 
       setTimeout(() => {
@@ -135,9 +156,16 @@ export default function Home() {
 
   const handleLoadDemo = () => {
     const demoData = getMockDemoAnalysis();
+    demoData.job_url = 'https://www.linkedin.com/jobs/view/4448318522';
+    demoData.company_name = 'BipBop Labs / Revi Technologies';
     setAnalysisResult(demoData);
     setErrorMessage(null);
-    saveAnalysisResult(demoData, 'Senior AI & Multi-Agent Systems Engineer (Demo)');
+    saveAnalysisResult(
+      demoData, 
+      'Senior AI & Multi-Agent Systems Engineer (Demo)',
+      demoData.job_url,
+      demoData.company_name
+    );
     setSavedAnalyses(getSavedAnalyses());
     setTimeout(() => {
       window.scrollTo({ top: 300, behavior: 'smooth' });
@@ -150,6 +178,11 @@ export default function Home() {
     setTimeout(() => {
       window.scrollTo({ top: 300, behavior: 'smooth' });
     }, 100);
+  };
+
+  const handleDeleteHistoryItem = (id: string) => {
+    const updated = deleteSavedAnalysis(id);
+    setSavedAnalyses(updated);
   };
 
   const handleClearHistory = () => {
@@ -254,6 +287,7 @@ export default function Home() {
         savedAnalyses={savedAnalyses}
         onSelectAnalysis={handleSelectHistoryItem}
         onClearHistory={handleClearHistory}
+        onDeleteAnalysis={handleDeleteHistoryItem}
       />
 
       <ChromeExtensionModal

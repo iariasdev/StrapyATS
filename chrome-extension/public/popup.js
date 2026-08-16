@@ -92,6 +92,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   btnOptimize.addEventListener('click', () => {
     if (!extractedData) return;
 
+    // Attach active tab URL
+    extractedData.url = tab.url;
+
     chrome.storage.local.get(['strapyats_app_url'], (res) => {
       const appUrl = res.strapyats_app_url || DEFAULT_APP_URL;
 

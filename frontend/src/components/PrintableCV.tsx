@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RewrittenCV } from '@/lib/types';
-import { printResumeDocument, copyToClipboard } from '@/lib/pdf-export';
+import { printResumeDocument, copyToClipboard, downloadPdfFile } from '@/lib/pdf-export';
+import { generateATSPdf } from '@/lib/pdf-generator';
+import { getUserProfile, setUserProfile } from '@/lib/utils';
 import { 
   Printer, 
   Copy, 
@@ -11,7 +13,8 @@ import {
   Sparkles, 
   FileText, 
   Plus, 
-  Trash2 
+  Trash2,
+  Download
 } from 'lucide-react';
 
 interface PrintableCVProps {
@@ -26,8 +29,8 @@ export const PrintableCV: React.FC<PrintableCVProps> = ({
   const [candidateName, setCandidateName] = useState('Alex R. Dev');
   const [candidateTitle, setCandidateTitle] = useState(seniorityMatch || 'Senior Software & AI Engineer');
   const [candidateEmail, setCandidateEmail] = useState('alex.dev@example.com');
-  const [candidatePhone, setCandidatePhone] = useState('+1 (555) 019-2834');
-  const [candidateLocation, setCandidateLocation] = useState('Remoto / Híbrido');
+  const [candidatePhone, setCandidatePhone] = useState('+56 9 1234 5678');
+  const [candidateLocation, setCandidateLocation] = useState('Santiago, Chile / Remoto');
   const [candidateLinkedin, setCandidateLinkedin] = useState('linkedin.com/in/alexdev');
   
   const [summary, setSummary] = useState(rewrittenCv.summary);
@@ -37,8 +40,18 @@ export const PrintableCV: React.FC<PrintableCVProps> = ({
   const [isCopied, setIsCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
+  // Load saved profile on mount
+  useEffect(() => {
+    const profile = getUserProfile();
+    if (profile.name) setCandidateName(profile.name);
+    if (profile.email) setCandidateEmail(profile.email);
+    if (profile.phone) setCandidatePhone(profile.phone);
+    if (profile.location) setCandidateLocation(profile.location);
+    if (profile.linkedin) setCandidateLinkedin(profile.linkedin);
+  }, []);
+
   // Synchronize when rewrittenCv changes
-  React.useEffect(() => {
+  useEffect(() => {
     setSummary(rewrittenCv.summary);
     setBullets(rewrittenCv.experience_bullets || []);
     setSkills(rewrittenCv.skills_added || []);
@@ -46,6 +59,20 @@ export const PrintableCV: React.FC<PrintableCVProps> = ({
       setCandidateTitle(seniorityMatch);
     }
   }, [rewrittenCv, seniorityMatch]);
+
+  const handleToggleEdit = () => {
+    if (isEditing) {
+      // Save updated contact profile to localStorage
+      setUserProfile({
+        name: candidateName,
+        email: candidateEmail,
+        phone: candidatePhone,
+        location: candidateLocation,
+        linkedin: candidateLinkedin,
+      });
+    }
+    setIsEditing(!isEditing);
+  };
 
   const handleCopyFullText = () => {
     const fullText = `
@@ -84,6 +111,24 @@ Powered by StrapyATS
     setBullets([...bullets, 'Nueva viñeta de impacto cuantificado...']);
   };
 
+  const handleDownloadDirectPdf = () => {
+    const fileName = `CV_${(candidateName || 'Candidato').replace(/\s+/g, '_')}_ATS.pdf`;
+    const pdfData = generateATSPdf({
+      candidate: {
+        name: candidateName,
+        title: candidateTitle,
+        email: candidateEmail,
+        phone: candidatePhone,
+        location: candidateLocation,
+        linkedin: candidateLinkedin
+      },
+      summary: summary,
+      skills: skills,
+      bullets: bullets
+    });
+    downloadPdfFile(pdfData.blob, fileName);
+  };
+
   return (
     <div className="space-y-6">
       
@@ -107,7 +152,7 @@ Powered by StrapyATS
           
           <button
             type="button"
-            onClick={() => setIsEditing(!isEditing)}
+            onClick={handleToggleEdit}
             className={`revi-btn h-10 px-4 text-xs ${
               isEditing 
                 ? 'bg-brand-primary text-white shadow-revi' 
@@ -115,7 +160,7 @@ Powered by StrapyATS
             }`}
           >
             <Edit3 className="w-3.5 h-3.5 mr-1.5" />
-            <span>{isEditing ? 'Vista Previa' : 'Editar Datos'}</span>
+            <span>{isEditing ? 'Guardar Datos' : 'Editar Datos'}</span>
           </button>
 
           <button
@@ -136,14 +181,24 @@ Powered by StrapyATS
             )}
           </button>
 
-          {/* 1-Click Browser PDF Print Trigger */}
+          {/* Direct ATS PDF File Download */}
+          <button
+            type="button"
+            onClick={handleDownloadDirectPdf}
+            className="revi-btn h-10 px-4 bg-brand-primary hover:bg-brand-hover text-white text-xs font-black shadow-revi flex items-center gap-1.5"
+          >
+            <Download className="w-4 h-4 stroke-[2.5]" />
+            <span>Descargar PDF</span>
+          </button>
+
+          {/* Browser Print / Preview */}
           <button
             type="button"
             onClick={printResumeDocument}
-            className="revi-btn h-10 px-5 bg-brand-primary hover:bg-brand-hover text-white text-xs font-black shadow-revi"
+            className="revi-btn h-10 px-4 bg-surface-200 hover:bg-surface-100 text-slate-200 text-xs font-medium flex items-center gap-1.5"
           >
-            <Printer className="w-4 h-4 mr-1.5" />
-            <span>Descargar / Imprimir PDF</span>
+            <Printer className="w-4 h-4" />
+            <span>Imprimir</span>
           </button>
 
         </div>

@@ -9,7 +9,8 @@ import {
   Trash2, 
   Lock
 } from 'lucide-react';
-import { setSavedApiKey, removeSavedApiKey } from '@/lib/utils';
+import { setSavedApiKey, removeSavedApiKey, getSavedModel, setSavedModel } from '@/lib/utils';
+import { Sparkles } from 'lucide-react';
 
 interface BYOKModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export const BYOKModal: React.FC<BYOKModalProps> = ({
   onApiKeyChange,
 }) => {
   const [keyValue, setKeyValue] = useState(currentApiKey);
+  const [selectedModel, setSelectedModel] = useState(getSavedModel());
   const [showKey, setShowKey] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -32,6 +34,7 @@ export const BYOKModal: React.FC<BYOKModalProps> = ({
 
   const handleSave = () => {
     setSavedApiKey(keyValue);
+    setSavedModel(selectedModel);
     onApiKeyChange(keyValue.trim());
     setSaveSuccess(true);
     setTimeout(() => {
@@ -61,10 +64,10 @@ export const BYOKModal: React.FC<BYOKModalProps> = ({
             </div>
             <div>
               <h3 className="text-sm font-black text-white uppercase tracking-wide font-display">
-                Configuración BYOK (API Key)
+                Configuración BYOK (API Key & Modelo)
               </h3>
               <p className="text-xs text-slate-400 font-medium">
-                Usa tu clave de Google Gemini para auditorías ilimitadas
+                Usa tu clave de Google Gemini para auditorías ilimitadas y personalizadas
               </p>
             </div>
           </div>
@@ -84,12 +87,35 @@ export const BYOKModal: React.FC<BYOKModalProps> = ({
               ¿Por qué usar tu propia clave?
             </div>
             <p className="text-slate-300 leading-relaxed font-medium">
-              El servidor gratuito limita las solicitudes por IP. Con tu propia clave de Google AI Studio obtienes <strong className="text-brand-cyan font-bold">análisis ilimitados y gratuitos</strong>.
+              El servidor público limita las solicitudes por IP. Con tu clave personal obtienes <strong className="text-brand-cyan font-bold">análisis ilimitados y gratuitos</strong> con el modelo que tú elijas.
             </p>
             <div className="flex items-center gap-1.5 text-[11px] text-slate-400 pt-1 font-mono">
               <Lock className="w-3.5 h-3.5 text-brand-cyan" />
               <span>La clave se guarda únicamente en tu navegador local (LocalStorage).</span>
             </div>
+          </div>
+
+          {/* Model Selector */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-slate-300 uppercase flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-brand-primary" />
+              <span>Modelo de Gemini a Utilizar</span>
+            </label>
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-surface-300 border-[2px] border-surface-border text-xs text-white focus:outline-none focus:border-brand-primary font-mono shadow-revi-sm cursor-pointer"
+            >
+              <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite (Recomendado - Más actualizado & $0 Free Tier)</option>
+              <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite (Ultra liviano)</option>
+              <option value="gemini-2.5-flash">Gemini 2.5 Flash (Ultrarrápido & Multimodal)</option>
+              <option value="gemini-2.0-flash">Gemini 2.0 Flash (Alta velocidad)</option>
+              <option value="gemini-1.5-flash">Gemini 1.5 Flash (Estándar)</option>
+              <option value="gemini-1.5-pro">Gemini 1.5 Pro (Máximo razonamiento profundo)</option>
+            </select>
+            <p className="text-[11px] text-slate-400">
+              Todos los modelos cuentan con cuota gratuita en Google AI Studio.
+            </p>
           </div>
 
           <div className="space-y-1.5">

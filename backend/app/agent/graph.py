@@ -1,7 +1,7 @@
 import os
 import uuid
 import logging
-from typing import TypedDict, List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, TypedDict
 from langgraph.graph import StateGraph, END
 from app.core.config import settings
 from app.agent.nodes.match_node import run_match_node
@@ -18,6 +18,7 @@ class AgentState(TypedDict):
     job_offer_text: str
     byok_api_key: Optional[str]
     effective_api_key: str
+    preferred_model: Optional[str]
     match_score: int
     seniority_match: str
     summary_verdict: str
@@ -59,7 +60,8 @@ strapy_agent = build_strapy_ats_graph()
 async def run_strapy_ats_pipeline(
     cv_text: str,
     job_offer_text: str,
-    byok_api_key: Optional[str] = None
+    byok_api_key: Optional[str] = None,
+    preferred_model: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Executes the full LangGraph pipeline with Langfuse tracing enabled if configured.
@@ -78,6 +80,7 @@ async def run_strapy_ats_pipeline(
         "job_offer_text": job_offer_text,
         "byok_api_key": byok_api_key,
         "effective_api_key": effective_key,
+        "preferred_model": preferred_model,
         "match_score": 0,
         "seniority_match": "Evaluating...",
         "summary_verdict": "",
@@ -90,24 +93,22 @@ async def run_strapy_ats_pipeline(
         "error": None,
     }
 
-    callbacks = []
-    trace_url = None
+    callbacks: List[Any] = []
+    trace_url: Optional[str] = None
 
     # Check Langfuse credentials
     if settings.LANGFUSE_PUBLIC_KEY and settings.LANGFUSE_SECRET_KEY:
         try:
+            os.environ["LANGFUSE_PUBLIC_KEY"] = settings.LANGFUSE_PUBLIC_KEY
+            os.environ["LANGFUSE_SECRET_KEY"] = settings.LANGFUSE_SECRET_KEY
+            os.environ["LANGFUSE_HOST"] = settings.LANGFUSE_HOST
+
             try:
                 from langfuse.callback import CallbackHandler
             except ImportError:
-                from langfuse.langchain import CallbackHandler
+                from langfuse.langchain import CallbackHandler  # type: ignore
 
-            langfuse_handler = CallbackHandler(
-                public_key=settings.LANGFUSE_PUBLIC_KEY,
-                secret_key=settings.LANGFUSE_SECRET_KEY,
-                host=settings.LANGFUSE_HOST,
-                session_id=session_id,
-                trace_name="StrapyATS_Analysis"
-            )
+            langfuse_handler = CallbackHandler()
             callbacks.append(langfuse_handler)
             trace_url = f"{settings.LANGFUSE_HOST}/trace/{session_id}"
             logger.info(f"Langfuse Cloud tracing active: {trace_url}")
@@ -115,12 +116,12 @@ async def run_strapy_ats_pipeline(
             logger.warning(f"Failed to initialize Langfuse callback: {e}")
 
     # Invoke graph
-    config = {"configurable": {"thread_id": session_id}}
+    config: Dict[str, Any] = {"configurable": {"thread_id": session_id}}
     if callbacks:
         config["callbacks"] = callbacks
 
-    final_state = await strapy_agent.ainvoke(initial_state, config=config)
+    final_state = await strapy_agent.ainvoke(initial_state, config=config)  # type: ignore
     if trace_url:
         final_state["langfuse_trace_url"] = trace_url
 
-    return final_state
+    return dict(final_state)

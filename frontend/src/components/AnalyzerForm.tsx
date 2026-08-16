@@ -17,13 +17,26 @@ import {
   Bookmark,
   CheckCircle2,
   Download,
-  MousePointerClick
+  MousePointerClick,
+  ExternalLink,
+  Globe,
+  Sparkles,
+  Link2,
+  RotateCcw,
+  Check
 } from 'lucide-react';
 import { PipelineStage } from '@/lib/types';
 import { getSavedCV, setSavedCV, removeSavedCV, getExtractedJob, clearExtractedJob } from '@/lib/utils';
+import { extractPdfText, extractJobFromUrl } from '@/lib/api';
 
 interface AnalyzerFormProps {
-  onAnalyze: (payload: { cvFile?: File | null; cvText?: string; jobOfferText: string }) => Promise<void>;
+  onAnalyze: (payload: { 
+    cvFile?: File | null; 
+    cvText?: string; 
+    jobOfferText: string;
+    jobUrl?: string | null;
+    companyName?: string | null;
+  }) => Promise<void>;
   onLoadDemo: () => void;
   isLoading: boolean;
   pipelineStage: PipelineStage;
@@ -32,51 +45,6 @@ interface AnalyzerFormProps {
   onOpenExtensionGuide?: () => void;
   onCancel?: () => void;
 }
-
-const SAMPLE_CV = `ALEXANDER R. SILVA
-Senior Full-Stack & AI Systems Developer
-Email: alex.silva@techdev.io | Tel: +1 555-019-3829 | GitHub: github.com/alexdev | LinkedIn: linkedin.com/in/alexdev
-
-RESUMEN PROFESIONAL:
-Desarrollador Full-Stack Senior con 5 años de experiencia diseñando arquitecturas web escalables, microservicios asíncronos en Python y aplicaciones con modelos de lenguaje grande (LLMs). Experiencia liderando equipos ágiles e implementando buenas prácticas de observabilidad.
-
-EXPERIENCIA LABORAL:
-Senior Software Engineer — CloudApps Studio (2022 - Presente)
-• Diseñó y desplegó microservicios REST con FastAPI y Python 3.11 manejando más de 100k solicitudes diarias.
-• Desarrolló interfaces frontend en Next.js 14 y TypeScript con tiempos de carga optimizados.
-• Implementó integraciones con modelos de OpenAI y Gemini para asistentes conversacionales.
-• Gestionó bases de datos relacionales PostgreSQL y caching con Redis.
-
-Full-Stack Developer — Innovatech Corp (2019 - 2022)
-• Construyó paneles de administración con React, Node.js y Docker.
-• Redujo el tiempo de respuesta de consultas SQL complejas en un 35%.
-• Participó en migraciones a arquitecturas cloud serverless.
-
-HABILIDADES TÉCNICAS:
-Python, FastAPI, Next.js, React, TypeScript, Docker, Git, CI/CD, SQL, PostgreSQL, LLMs, Prompt Engineering.
-
-EDUCACIÓN:
-Licenciatura en Ciencias de la Computación — Universidad Central (2015 - 2019)`;
-
-const SAMPLE_JOB = `Puesto: Senior AI & Multi-Agent Systems Engineer
-Empresa: BipBop Labs / Revi Technologies
-Ubicación: Remoto (Latam / USA)
-
-Buscamos un Ingeniero de Software Sénior con sólida experiencia en arquitecturas de agentes deterministas y flujos RAG para unirse a nuestro equipo de desarrollo de IA.
-
-Responsabilidades Principales:
-• Diseñar y construir grafos multi-agente complejos utilizando LangGraph y FastAPI.
-• Implementar bases de datos vectoriales optimizadas en disco con ChromaDB PersistentClient para garantizar una huella de memoria ultrabaja (<50MB) en contenedores Docker y GCP Cloud Run.
-• Integrar observabilidad de extremo a extremo con Langfuse Cloud para auditoría de latencia P95, métricas de tokens y control de costos.
-• Desarrollar extensiones de Chrome (Manifest v3) para extracción eficiente del DOM y dashboards en Next.js con generación de reportes en el cliente.
-• Diseñar políticas de rate limiting y soporte de arquitectura BYOK (Bring Your Own Key) para modelos Google Gemini Flash.
-
-Requisitos Excluyentes:
-• +4 años de experiencia en Python moderno (FastAPI, Pydantic v2).
-• Experiencia práctica con LangGraph (nodos, estados deterministas, guardas de flujo).
-• Dominio de RAG con ChromaDB y embeddings semánticos.
-• Conocimiento de observabilidad LLM con Langfuse o similar.
-• Mentalidad FinOps para desarrollo de aplicaciones IA con costo $0 en Free Tiers.`;
 
 export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
   onAnalyze,
@@ -96,13 +64,23 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
 
   const [jobOfferText, setJobOfferText] = useState('');
   const [jobSourceNotice, setJobSourceNotice] = useState<string | null>(null);
+  const [jobUrl, setJobUrl] = useState<string | null>(null);
+  const [jobCompany, setJobCompany] = useState<string | null>(null);
+  const [jobTitle, setJobTitle] = useState<string | null>(null);
   const [showManualJobInput, setShowManualJobInput] = useState(false);
+  const [jobUrlInput, setJobUrlInput] = useState('');
+  const [isScrapingUrl, setIsScrapingUrl] = useState(false);
+  const [urlScrapeError, setUrlScrapeError] = useState<string | null>(null);
 
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const autoSubmitRef = useRef<boolean>(false);
 
-  // 1. On Mount: Check if user has a persistent CV saved in browser
+  const canProceedRef = useRef<boolean>(false);
+  useEffect(() => {
+    canProceedRef.current = cvMode === 'upload' ? cvFile !== null : cvText.trim().length > 50;
+  }, [cvMode, cvFile, cvText]);
+
   useEffect(() => {
     const saved = getSavedCV();
     let hasCV = false;
@@ -115,11 +93,13 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
       setCvMode('upload');
     }
 
-    // 2. Check if a job was sent from the Chrome Extension
     const imported = getExtractedJob();
     if (imported && imported.fullText) {
       setJobOfferText(imported.fullText);
       setJobSourceNotice(`Oferta importada de ${imported.company || imported.title || 'LinkedIn'}`);
+      if (imported.url) setJobUrl(imported.url);
+      if (imported.company) setJobCompany(imported.company);
+      if (imported.title) setJobTitle(imported.title);
       setShowManualJobInput(true);
       
       if (hasCV) {
@@ -129,13 +109,19 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
       }
     }
 
-    // 3. Listen for live events from Chrome Extension in active tab
     const handleJobImport = (e: any) => {
       const data = e.detail;
       if (data && data.fullText) {
         setJobOfferText(data.fullText);
         setJobSourceNotice(`Oferta importada de ${data.company || data.title || 'LinkedIn'}`);
+        if (data.url) setJobUrl(data.url);
+        if (data.company) setJobCompany(data.company);
+        if (data.title) setJobTitle(data.title);
         setShowManualJobInput(true);
+        
+        if (canProceedRef.current) {
+          setWizardStep(2);
+        }
       }
     };
 
@@ -145,23 +131,6 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
     };
   }, []);
 
-  // 4. Auto-submit when in step 2 and job offer is received
-  useEffect(() => {
-    if (
-      wizardStep === 2 &&
-      jobOfferText.trim().length > 20 &&
-      (cvFile || cvText.trim()) &&
-      !isLoading &&
-      !autoSubmitRef.current &&
-      jobSourceNotice !== null
-    ) {
-      autoSubmitRef.current = true;
-      const timer = setTimeout(() => {
-        executeAnalysis();
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [jobOfferText, wizardStep, cvFile, cvText, isLoading, jobSourceNotice]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -173,6 +142,34 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
     }
   };
 
+  const [isProcessingPdf, setIsProcessingPdf] = useState(false);
+
+  const processPdfFile = async (file: File) => {
+    setIsProcessingPdf(true);
+    try {
+      const text = await extractPdfText(file);
+      if (text && text.trim()) {
+        setCvText(text.trim());
+        setCvMode('paste');
+        setSavedCV(text.trim(), file.name);
+        setHasSavedCv(true);
+        setCvFile(null);
+      } else {
+        throw new Error('No se pudo extraer texto del PDF.');
+      }
+    } catch (error) {
+      console.error('Error al procesar PDF:', error);
+      // Fallback: lo dejamos como archivo subido
+      setCvMode('upload');
+      setCvFile(file);
+      setCvText('');
+      setHasSavedCv(false);
+      removeSavedCV();
+    } finally {
+      setIsProcessingPdf(false);
+    }
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -180,15 +177,15 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
       if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-        setCvFile(file);
-        setCvMode('upload');
+        processPdfFile(file);
       }
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setCvFile(e.target.files[0]);
+      const file = e.target.files[0];
+      processPdfFile(file);
     }
   };
 
@@ -206,17 +203,36 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
     setCvFile(null);
   };
 
-  const handleLoadSamples = () => {
-    setCvMode('paste');
-    setCvText(SAMPLE_CV);
-    setJobOfferText(SAMPLE_JOB);
-    setCvFile(null);
-    setWizardStep(2);
-    setShowManualJobInput(true);
+  const handleExtractFromUrl = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!jobUrlInput.trim()) return;
+
+    setIsScrapingUrl(true);
+    setUrlScrapeError(null);
+
+    try {
+      const result = await extractJobFromUrl(jobUrlInput.trim());
+      if (result && result.full_text) {
+        setJobOfferText(result.full_text);
+        setJobUrl(result.url || jobUrlInput.trim());
+        setJobCompany(result.company || null);
+        setJobTitle(result.title || null);
+        setJobSourceNotice(`Oferta importada de ${result.company || result.title || 'LinkedIn'}`);
+        setShowManualJobInput(true);
+        setJobUrlInput('');
+      } else {
+        throw new Error('No se pudo extraer el texto de la oferta.');
+      }
+    } catch (err: any) {
+      console.error('Error scraping job URL:', err);
+      setUrlScrapeError(err?.message || 'No se pudo leer la oferta desde la URL. Prueba pegando el texto directamente o usando la extensión de Chrome.');
+    } finally {
+      setIsScrapingUrl(false);
+    }
   };
 
   const executeAnalysis = () => {
-    if (cvText.trim() && !hasSavedCv) {
+    if (cvMode === 'paste' && cvText.trim() && !hasSavedCv) {
       setSavedCV(cvText, 'Mi Currículum');
       setHasSavedCv(true);
     }
@@ -225,13 +241,21 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
       cvFile: cvMode === 'upload' ? cvFile : null,
       cvText: cvMode === 'paste' ? cvText : undefined,
       jobOfferText,
+      jobUrl,
+      companyName: jobCompany,
     });
   };
+
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (wizardStep === 1) {
-      setWizardStep(2);
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setIsTransitioning(false);
+        setWizardStep(2);
+      }, 600);
     } else {
       executeAnalysis();
     }
@@ -285,17 +309,6 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
             </div>
           </div>
         </div>
-
-        <div className="flex items-center gap-2.5 text-xs font-sans w-full sm:w-auto justify-end">
-          <button
-            type="button"
-            onClick={handleLoadSamples}
-            className="revi-btn h-9 px-3.5 bg-surface-200 hover:bg-surface-100 text-slate-200 text-xs font-bold"
-          >
-            <FileSearch className="w-3.5 h-3.5 mr-1.5 text-slate-400" />
-            <span>Usar Ejemplo</span>
-          </button>
-        </div>
       </div>
 
       {/* Main Wizard Form */}
@@ -343,7 +356,21 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
 
             {cvMode === 'upload' ? (
               <div className="flex-1 flex flex-col justify-center min-h-[280px]">
-                {cvFile ? (
+                {isProcessingPdf ? (
+                  <div className="p-8 bg-surface-300 border-[2px] border-brand-cyan text-center space-y-4 shadow-revi-sm max-w-md mx-auto w-full animate-pulse">
+                    <div className="inline-flex p-4 bg-brand-cyan/20 text-brand-cyan border-[2px] border-brand-cyan rounded-full">
+                      <div className="w-8 h-8 border-4 border-brand-cyan/30 border-t-brand-cyan rounded-full animate-spin" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-mono font-bold text-white">
+                        Procesando y vinculando documento PDF...
+                      </h4>
+                      <p className="text-xs text-slate-400 font-mono mt-1">
+                        Verificando compatibilidad con parser ATS
+                      </p>
+                    </div>
+                  </div>
+                ) : cvFile ? (
                   <div className="p-8 bg-surface-300 border-[2px] border-brand-primary text-center space-y-4 shadow-revi-sm max-w-md mx-auto w-full">
                     <div className="inline-flex p-4 bg-brand-primary text-white border-[2px] border-surface-border rounded-full">
                       <FileCheck className="w-8 h-8" />
@@ -442,12 +469,21 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
             <div className="flex justify-end pt-4 border-t-[2px] border-surface-border">
               <button
                 type="button"
-                onClick={() => setWizardStep(2)}
-                disabled={!canProceedToStep2()}
-                className="revi-btn h-12 px-8 bg-brand-primary hover:bg-brand-hover text-white text-sm font-extrabold shadow-revi disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleSubmit}
+                disabled={!canProceedToStep2() || isTransitioning}
+                className="revi-btn h-12 px-8 bg-brand-primary hover:bg-brand-hover text-white text-sm font-extrabold shadow-revi disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto flex justify-center items-center"
               >
-                <span>Siguiente Paso</span>
-                <ArrowRight className="w-4 h-4 ml-2 stroke-[3]" />
+                {isTransitioning ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-[2px] border-white/30 border-t-white rounded-full animate-spin"></span>
+                    Guardando...
+                  </span>
+                ) : (
+                  <span className="flex items-center">
+                    Siguiente Paso
+                    <ArrowRight className="w-4 h-4 ml-2 stroke-[3]" />
+                  </span>
+                )}
               </button>
             </div>
           </div>
@@ -455,6 +491,37 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
 
         {wizardStep === 2 && (
           <div className="revi-card p-6 flex flex-col space-y-6 animate-in fade-in zoom-in-95 duration-300">
+
+            {/* Active CV indicator banner */}
+            <div className="flex items-center justify-between p-3.5 bg-surface-300 border-[2px] border-surface-border text-xs rounded-none">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 rounded-none">
+                  <FileCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono font-bold uppercase text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 border border-emerald-800/60">
+                      CV Base Vinculado
+                    </span>
+                    <span className="font-mono font-bold text-white text-xs">
+                      {cvMode === 'upload' && cvFile ? cvFile.name : 'CV en formato de texto'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                    {cvMode === 'upload' && cvFile 
+                      ? `${(cvFile.size / 1024).toFixed(1)} KB • Documento PDF listo para procesar`
+                      : `${cvText.length} caracteres guardados`}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setWizardStep(1)}
+                className="text-xs font-mono font-bold text-brand-cyan hover:text-cyan-300 hover:underline px-2 py-1"
+              >
+                Cambiar CV
+              </button>
+            </div>
 
             {!showManualJobInput ? (
               <div className="flex flex-col items-center justify-center py-8 px-4 text-center space-y-8">
@@ -511,14 +578,72 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
                   </div>
                 </div>
 
-                <div className="flex flex-col items-center space-y-4 pt-4">
+                {/* Direct Job URL Extractor Card */}
+                <div className="w-full max-w-2xl bg-surface-300 border-[2px] border-brand-cyan/40 p-5 flex flex-col space-y-3 text-left relative shadow-revi-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold uppercase text-white tracking-wider flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-brand-cyan" />
+                      ¿Prefieres pegar el link de la oferta?
+                    </span>
+                    <span className="text-[10px] font-mono text-brand-cyan bg-brand-cyan/10 px-2 py-0.5 border border-brand-cyan/30">
+                      Auto-extracción
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-300">
+                    Pega cualquier enlace público de <strong>LinkedIn, Get on Board, Computrabajo, etc.</strong> y extraeremos los requisitos automáticamente.
+                  </p>
+
+                  <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                    <input
+                      type="text"
+                      autoComplete="off"
+                      spellCheck="false"
+                      value={jobUrlInput}
+                      onChange={(e) => setJobUrlInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleExtractFromUrl();
+                        }
+                      }}
+                      placeholder="https://www.linkedin.com/jobs/view/4448318522..."
+                      className="flex-1 bg-[#111318] border-[2px] border-surface-border px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-cyan font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleExtractFromUrl()}
+                      disabled={!jobUrlInput.trim() || isScrapingUrl}
+                      className="revi-btn px-5 py-2.5 bg-brand-cyan hover:bg-cyan-400 text-slate-900 text-xs font-black uppercase flex items-center justify-center gap-2 disabled:opacity-50 transition-all shadow-revi-sm shrink-0"
+                    >
+                      {isScrapingUrl ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Extrayendo...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Extraer Oferta</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {urlScrapeError && (
+                    <p className="text-[11px] text-rose-400 font-mono bg-rose-950/40 p-2.5 border border-rose-800/50">
+                      {urlScrapeError}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex flex-col items-center space-y-4 pt-2">
                   <div className="relative">
                     {/* Pulsing indicator */}
                     <div className="absolute inset-0 bg-brand-cyan/20 rounded-full" />
                     <div className="relative bg-surface-200 border border-brand-cyan/30 px-6 py-3 rounded-full flex items-center gap-3">
                       <div className="w-2 h-2 rounded-full bg-brand-cyan animate-pulse" />
                       <span className="text-xs font-mono font-bold text-brand-cyan uppercase">
-                        Esperando datos de la extensión...
+                        Esperando datos de la extensión o enlace...
                       </span>
                     </div>
                   </div>
@@ -541,16 +666,87 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
                   </div>
 
                   {jobSourceNotice ? (
-                    <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 uppercase flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3 h-3" />
-                      {jobSourceNotice}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 uppercase flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3 h-3" />
+                        {jobSourceNotice}
+                      </span>
+                      {jobUrl && (
+                        <a
+                          href={jobUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-mono font-bold text-brand-cyan hover:underline bg-surface-200 border border-surface-border px-2 py-0.5 uppercase flex items-center gap-1"
+                        >
+                          <span>Ver Empleo</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
                   ) : (
                     <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">
                       Ingreso Manual
                     </span>
                   )}
                 </div>
+
+                {/* Quick URL Import Bar inside manual view */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-surface-300 p-2.5 border-[2px] border-surface-border">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <Globe className="w-4 h-4 text-brand-cyan shrink-0 ml-1" />
+                    <input
+                      type="url"
+                      value={jobUrlInput}
+                      onChange={(e) => setJobUrlInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleExtractFromUrl();
+                        }
+                      }}
+                      placeholder={
+                        jobTitle 
+                          ? `${jobCompany ? `${jobCompany} • ` : ''}${jobTitle}` 
+                          : "Pega otro link de oferta para actualizar el texto..."
+                      }
+                      className="flex-1 bg-transparent text-xs text-slate-200 placeholder-slate-400 font-mono focus:outline-none truncate"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {!jobUrlInput.trim() && (jobTitle || jobOfferText.trim().length > 50) ? (
+                      <div className="px-3 py-1.5 bg-emerald-950/80 border border-emerald-500/60 text-emerald-400 text-[11px] font-mono font-bold uppercase flex items-center gap-1.5 shadow-sm">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>Oferta Extraída</span>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleExtractFromUrl()}
+                        disabled={!jobUrlInput.trim() || isScrapingUrl}
+                        className="revi-btn px-4 py-1.5 bg-brand-cyan hover:bg-cyan-400 text-slate-900 text-[11px] font-black uppercase flex items-center gap-1.5 disabled:opacity-40 shadow-revi-sm transition-all"
+                      >
+                        {isScrapingUrl ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Extrayendo...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>Extraer Link</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {urlScrapeError && (
+                  <p className="text-[11px] text-rose-400 font-mono bg-rose-950/40 p-2 border border-rose-800/50">
+                    {urlScrapeError}
+                  </p>
+                )}
 
                 <div className="flex-1 flex flex-col space-y-2">
                   <textarea
@@ -608,23 +804,43 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
               </div>
 
               {showManualJobInput && (
-                <button
-                  type="submit"
-                  disabled={isLoading || jobOfferText.trim().length < 20}
-                  className="w-full sm:w-auto revi-btn h-12 px-8 bg-brand-primary hover:bg-brand-hover text-white text-xs font-extrabold shadow-revi disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      <span>AUDITANDO CV...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>EJECUTAR AUDITORÍA ATS</span>
-                      <ArrowRight className="w-4 h-4 ml-2 stroke-[3]" />
-                    </>
-                  )}
-                </button>
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowManualJobInput(false);
+                      setJobOfferText('');
+                      setJobSourceNotice(null);
+                      setJobUrl(null);
+                      setJobCompany(null);
+                      setJobTitle(null);
+                      setJobUrlInput('');
+                      clearExtractedJob();
+                    }}
+                    className="w-full sm:w-auto revi-btn h-12 px-5 bg-surface-300 hover:bg-surface-200 text-slate-300 hover:text-white border-[2px] border-surface-border text-xs font-extrabold uppercase transition-colors flex items-center justify-center gap-2"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Importar otra oferta</span>
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading || jobOfferText.trim().length < 20}
+                    className="w-full sm:w-auto revi-btn h-12 px-8 bg-brand-primary hover:bg-brand-hover text-white text-xs font-extrabold shadow-revi disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        <span>AUDITANDO CV...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>EJECUTAR AUDITORÍA ATS</span>
+                        <ArrowRight className="w-4 h-4 ml-2 stroke-[3]" />
+                      </>
+                    )}
+                  </button>
+                </div>
               )}
             </div>
 

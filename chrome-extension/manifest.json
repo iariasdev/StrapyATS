@@ -7,7 +7,8 @@
     "activeTab",
     "scripting",
     "storage",
-    "contextMenus"
+    "contextMenus",
+    "tabs"
   ],
   "host_permissions": [
     "https://*.linkedin.com/*",
@@ -15,7 +16,8 @@
     "https://*.indeed.com/*",
     "https://*.glassdoor.com/*",
     "https://*.computrabajo.com/*",
-    "http://localhost/*"
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ],
   "action": {
     "default_popup": "public/popup.html",
@@ -41,6 +43,14 @@
         "https://*.computrabajo.com/*"
       ],
       "js": ["src/content_script.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": ["src/web_bridge.js"],
       "run_at": "document_idle"
     }
   ],

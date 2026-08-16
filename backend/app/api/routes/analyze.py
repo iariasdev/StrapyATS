@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request, Body
 from app.models.schemas import AnalyzeResponse, AnalyzeRequest, ATSGap, InterviewQuestion, RewrittenCV
 from app.services.pdf_service import extract_text_from_pdf
+from app.services.scraper_service import scrape_job_from_url
 from app.services.rate_limiter import rate_limiter
 from app.agent.graph import run_strapy_ats_pipeline
 
@@ -17,6 +18,7 @@ async def analyze_cv(
     cv_text: Optional[str] = Form(None, description="Raw text of candidate CV (if not uploading PDF file)"),
     job_offer_text: str = Form(..., description="Job offer text or extracted content"),
     byok_api_key: Optional[str] = Form(None, description="Optional: user's own Google AI Studio API Key (BYOK)"),
+    model_name: Optional[str] = Form(None, description="Optional: user's preferred Gemini model"),
 ):
     """
     Main endpoint: receives a CV (PDF or raw text) and target job offer text,
@@ -63,7 +65,8 @@ async def analyze_cv(
         pipeline_result = await run_strapy_ats_pipeline(
             cv_text=final_cv_text,
             job_offer_text=job_offer_text,
-            byok_api_key=byok_api_key
+            byok_api_key=byok_api_key,
+            preferred_model=model_name
         )
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
@@ -148,7 +151,8 @@ async def analyze_cv_json(
         pipeline_result = await run_strapy_ats_pipeline(
             cv_text=payload.cv_text,
             job_offer_text=payload.job_offer_text,
-            byok_api_key=payload.byok_api_key
+            byok_api_key=payload.byok_api_key,
+            preferred_model=payload.model_name
         )
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
@@ -194,3 +198,27 @@ async def analyze_cv_json(
         langfuse_trace_url=pipeline_result.get("langfuse_trace_url"),
         rate_limit_remaining=remaining_quota
     )
+
+
+@router.post("/extract-pdf-text")
+async def extract_pdf_endpoint(file: UploadFile = File(...)):
+    """
+    Extracts text from an uploaded CV PDF file directly.
+    """
+    file_bytes = await file.read()
+    text = extract_text_from_pdf(file_bytes)
+    return {"text": text, "filename": file.filename}
+
+
+@router.post("/extract-job-url")
+async def extract_job_url_endpoint(payload: dict = Body(...)):
+    """
+    Extracts job offer information and full description from a given URL (e.g. LinkedIn or career portal).
+    """
+    url = payload.get("url")
+    if not url or not url.strip():
+        raise HTTPException(status_code=400, detail="Por favor ingresa una URL válida.")
+    
+    return await scrape_job_from_url(url.strip())
+
+

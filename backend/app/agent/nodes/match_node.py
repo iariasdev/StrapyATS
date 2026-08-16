@@ -26,20 +26,20 @@ async def run_match_node(state: Dict[str, Any]) -> Dict[str, Any]:
     relevant_chunks = vector_store.query_cv_similarity(session_id, sample_job_query, top_k=4)
     chunks_formatted = "\n---\n".join(relevant_chunks) if relevant_chunks else "No specific vector chunks returned."
 
-    # Step C: Call LLM (Google Gemini Flash)
+    # Step C: Call LLM (Google Gemini with Fallback)
     try:
-        llm = ChatGoogleGenerativeAI(
-            model=settings.GEMINI_MODEL,
-            google_api_key=api_key,
-            temperature=0.2,
-        )
+        from app.agent.llm import invoke_gemini_with_fallback
         prompt = MATCH_SCORER_PROMPT.format(
             job_offer_text=job_offer_text,
             cv_text=cv_text[:3000],
             relevant_chunks=chunks_formatted[:1500],
         )
-        response = await llm.ainvoke(prompt)
-        content = str(response.content).strip()
+        content = await invoke_gemini_with_fallback(
+            prompt, 
+            api_key=api_key, 
+            temperature=0.2,
+            preferred_model=state.get("preferred_model")
+        )
 
         # Parse JSON
         if "```json" in content:
