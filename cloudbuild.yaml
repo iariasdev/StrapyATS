@@ -1,5 +1,5 @@
 steps:
-  # 1. Compilar imagen Docker apuntando a Artifact Registry (estándar moderno de GCP)
+  # 1. Compilar imagen Docker en Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
@@ -36,3 +36,6 @@ steps:
 
 images:
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/strapyats:$COMMIT_SHA'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
