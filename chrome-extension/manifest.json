@@ -16,6 +16,7 @@
     "https://*.indeed.com/*",
     "https://*.glassdoor.com/*",
     "https://*.computrabajo.com/*",
+    "https://*.vercel.app/*",
     "http://localhost/*",
     "http://127.0.0.1/*"
   ],
@@ -47,6 +48,7 @@
     },
     {
       "matches": [
+        "https://*.vercel.app/*",
         "http://localhost/*",
         "http://127.0.0.1/*"
       ],
