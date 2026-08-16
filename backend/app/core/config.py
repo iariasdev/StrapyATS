@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "https://strapyats.com",
+        "https://www.strapyats.com",
         "https://strapyats.vercel.app",
         "https://strapy-h8qw2jrqk-kirfteh-gmailcoms-projects.vercel.app",
         "chrome-extension://*",
