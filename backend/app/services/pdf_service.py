@@ -20,7 +20,7 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
             for i, page in enumerate(pdf.pages):
                 page_text = page.extract_text()
                 if page_text:
-                    extracted_text += f"\n--- Page {i+1} ---\n" + page_text
+                    extracted_text += ("\n\n" if extracted_text else "") + page_text.strip()
     except Exception as e:
         logger.error(f"Error parsing PDF with pdfplumber: {e}")
         raise HTTPException(

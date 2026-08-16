@@ -23,19 +23,21 @@ import {
   Sparkles,
   Link2,
   RotateCcw,
-  Check
+  Check,
+  Cpu,
+  Target
 } from 'lucide-react';
 import { PipelineStage } from '@/lib/types';
-import { getSavedCV, setSavedCV, removeSavedCV, getExtractedJob, clearExtractedJob } from '@/lib/utils';
+import { getSavedCV, setSavedCV, removeSavedCV, getExtractedJob, clearExtractedJob, extractContactInfoFromText, setUserProfile } from '@/lib/utils';
 import { extractPdfText, extractJobFromUrl } from '@/lib/api';
 
 interface AnalyzerFormProps {
   onAnalyze: (payload: { 
     cvFile?: File | null; 
     cvText?: string; 
-    jobOfferText: string;
-    jobUrl?: string | null;
-    companyName?: string | null;
+    jobOfferText: string; 
+    jobUrl?: string | null; 
+    companyName?: string | null; 
   }) => Promise<void>;
   onLoadDemo: () => void;
   isLoading: boolean;
@@ -44,6 +46,7 @@ interface AnalyzerFormProps {
   onOpenByok: () => void;
   onOpenExtensionGuide?: () => void;
   onCancel?: () => void;
+  initialMode?: 'optimize_cv' | 'apply_job';
 }
 
 export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
@@ -55,9 +58,11 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
   onOpenByok,
   onOpenExtensionGuide,
   onCancel,
+  initialMode = 'apply_job',
 }) => {
+  const [appMode, setAppMode] = useState<'optimize_cv' | 'apply_job'>(initialMode);
   const [wizardStep, setWizardStep] = useState<1 | 2>(1);
-  const [cvMode, setCvMode] = useState<'upload' | 'paste'>('paste');
+  const [cvMode, setCvMode] = useState<'upload' | 'paste'>('upload');
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [cvText, setCvText] = useState('');
   const [hasSavedCv, setHasSavedCv] = useState(false);
@@ -154,6 +159,12 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
         setSavedCV(text.trim(), file.name);
         setHasSavedCv(true);
         setCvFile(null);
+
+        // Auto-extract candidate contact info from PDF text
+        const contact = extractContactInfoFromText(text.trim());
+        if (contact.phone || contact.email || contact.name) {
+          setUserProfile(contact);
+        }
       } else {
         throw new Error('No se pudo extraer texto del PDF.');
       }
@@ -193,6 +204,10 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
     if (cvText.trim()) {
       setSavedCV(cvText, 'Mi Currículum Base');
       setHasSavedCv(true);
+      const contact = extractContactInfoFromText(cvText.trim());
+      if (contact.phone || contact.email || contact.name) {
+        setUserProfile(contact);
+      }
     }
   };
 
@@ -229,20 +244,33 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
     } finally {
       setIsScrapingUrl(false);
     }
-  };
+  };  const executeAnalysis = () => {
+    if (cvMode === 'paste' && cvText.trim()) {
+      const contact = extractContactInfoFromText(cvText.trim());
+      if (contact.phone || contact.email || contact.name) {
+        setUserProfile(contact);
+      }
 
-  const executeAnalysis = () => {
-    if (cvMode === 'paste' && cvText.trim() && !hasSavedCv) {
-      setSavedCV(cvText, 'Mi Currículum');
-      setHasSavedCv(true);
+      if (!hasSavedCv) {
+        setSavedCV(cvText, 'Mi Currículum');
+        setHasSavedCv(true);
+      }
     }
+
+    const defaultUniversalJobOffer = `AUDITORÍA Y OPTIMIZACIÓN GENERAL DE CURRÍCULUM VITAE PARA SISTEMAS ATS (Workday, Taleo, Greenhouse, SAP SuccessFactors, Lever).
+Objetivos clave:
+1. Maximizar el impacto y claridad del perfil profesional para reclutadores técnicos y de gestión.
+2. Reescribir y estructurar todas las viñetas laborales bajo la metodología STAR (Situación, Tarea, Acción, Resultado con métricas cuantificables de impacto).
+3. Clasificar y organizar habilidades técnicas, metodologías y herramientas en categorías estructuradas.
+4. Identificar brechas de formato y oportunidades de mejora para maximizar compatibilidad ATS.
+5. Redactar una carta de presentación ejecutiva de alta conversión lista para cualquier postulación.`;
 
     onAnalyze({
       cvFile: cvMode === 'upload' ? cvFile : null,
       cvText: cvMode === 'paste' ? cvText : undefined,
-      jobOfferText,
-      jobUrl,
-      companyName: jobCompany,
+      jobOfferText: appMode === 'optimize_cv' ? defaultUniversalJobOffer : (jobOfferText || defaultUniversalJobOffer),
+      jobUrl: appMode === 'optimize_cv' ? null : jobUrl,
+      companyName: appMode === 'optimize_cv' ? 'Auditoría Universal ATS' : (jobCompany || 'Empresa Objetivo'),
     });
   };
 
@@ -250,7 +278,9 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (wizardStep === 1) {
+    if (appMode === 'optimize_cv') {
+      executeAnalysis();
+    } else if (wizardStep === 1) {
       setIsTransitioning(true);
       setTimeout(() => {
         setIsTransitioning(false);
@@ -270,7 +300,7 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
       case 'vectorizing_chroma':
         return 'Calculando embeddings semánticos en ChromaDB...';
       case 'ats_gap_audit':
-        return 'Auditando requisitos excluyentes del puesto...';
+        return 'Auditando requisitos y estándares de formato ATS...';
       case 'langgraph_rewrite':
         return 'Optimizando viñetas y métricas de impacto STAR...';
       case 'generating_outputs':
@@ -287,6 +317,46 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
   return (
     <div id="analyzer-section" className="w-full max-w-4xl mx-auto space-y-6 pt-2 font-sans animate-in fade-in slide-in-from-bottom-4 duration-500">
 
+      {/* Mode Selector Segmented Tabs */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-2.5 bg-surface-300 border-[2px] border-surface-border">
+        <div className="flex items-center gap-2 text-[11px] font-mono font-bold text-slate-300 px-1">
+          <span className="w-2 h-2 rounded-full bg-brand-cyan animate-pulse" />
+          <span className="text-slate-400">MODO ACTIVO:</span>
+          <span className="text-white font-mono">
+            {appMode === 'optimize_cv' ? 'UNIVERSAL ATS AUDIT' : 'JOB OFFER MATCH & APPLY'}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 w-full sm:w-auto bg-surface-200 p-1 border border-surface-border">
+          <button
+            type="button"
+            onClick={() => {
+              setAppMode('optimize_cv');
+              setWizardStep(1);
+            }}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-1.5 text-xs font-mono font-bold transition-all cursor-pointer ${
+              appMode === 'optimize_cv'
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <span>01 • Optimizar mi CV</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAppMode('apply_job');
+            }}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-1.5 text-xs font-mono font-bold transition-all cursor-pointer ${
+              appMode === 'apply_job'
+                ? 'bg-brand-primary text-white shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <span>02 • Adaptar a Oferta</span>
+          </button>
+        </div>
+      </div>
+
       {/* Wizard Header */}
       <div className="revi-card p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-4 w-full sm:w-auto">
@@ -294,18 +364,28 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
             <button
               type="button"
               onClick={onCancel}
-              className="p-2 hover:bg-surface-300 rounded-full transition-colors text-slate-400 hover:text-white"
+              className="p-2 hover:bg-surface-300 rounded-full transition-colors text-slate-400 hover:text-white cursor-pointer"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
           )}
           <div className="space-y-1">
             <h2 className="text-base font-extrabold text-white font-display uppercase tracking-wide">
-              {wizardStep === 1 ? 'Paso 1: Sube tu Currículum' : 'Paso 2: Captura la Oferta'}
+              {appMode === 'optimize_cv' 
+                ? '✨ Optimización Universal de Currículum' 
+                : wizardStep === 1 
+                  ? 'Paso 1: Sube tu Currículum' 
+                  : 'Paso 2: Captura la Oferta'}
             </h2>
             <div className="flex items-center gap-2 mt-2">
-              <div className={`h-1.5 w-12 rounded-full ${wizardStep >= 1 ? 'bg-brand-cyan' : 'bg-surface-border'}`} />
-              <div className={`h-1.5 w-12 rounded-full ${wizardStep >= 2 ? 'bg-brand-cyan' : 'bg-surface-border'}`} />
+              {appMode === 'optimize_cv' ? (
+                <div className="h-1.5 w-24 rounded-full bg-brand-cyan" />
+              ) : (
+                <>
+                  <div className={`h-1.5 w-12 rounded-full ${wizardStep >= 1 ? 'bg-brand-cyan' : 'bg-surface-border'}`} />
+                  <div className={`h-1.5 w-12 rounded-full ${wizardStep >= 2 ? 'bg-brand-cyan' : 'bg-surface-border'}`} />
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -317,19 +397,21 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
         {wizardStep === 1 && (
           <div className="revi-card p-6 flex flex-col space-y-6 animate-in fade-in zoom-in-95 duration-300">
 
-            <div className="flex items-center justify-between border-b-[2px] border-surface-border pb-4">
-              <p className="text-sm text-slate-300">
-                Necesitamos tu currículum base para compararlo contra los requisitos del puesto. Se analizará de forma segura.
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-[2px] border-surface-border pb-4">
+              <p className="text-sm text-slate-300 flex-1 min-w-0">
+                {appMode === 'optimize_cv'
+                  ? 'Analizaremos tu currículum contra estándares de los principales ATS (Workday, Taleo, Greenhouse), reformulando tus logros con métricas STAR y organizando tus competencias.'
+                  : 'Necesitamos tu currículum base para compararlo contra los requisitos del puesto. Se analizará de forma segura.'}
               </p>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
                 {hasSavedCv && (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 uppercase font-mono">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 uppercase font-mono shrink-0">
                     <BookmarkCheck className="w-3 h-3 text-emerald-400" />
                     Guardado
                   </span>
                 )}
-                <div className="flex items-center bg-surface-300 p-0.5 border-[2px] border-surface-border text-xs font-bold shrink-0">
+                <div className="inline-flex items-center bg-surface-300 p-0.5 border-[2px] border-surface-border text-xs font-bold shrink-0">
                   <button
                     type="button"
                     onClick={() => setCvMode('upload')}
@@ -383,14 +465,18 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
                         {(cvFile.size / 1024).toFixed(1)} KB • Listo para auditar
                       </p>
                     </div>
-                    <div>
+                    <div className="pt-2">
                       <button
                         type="button"
-                        onClick={() => setCvFile(null)}
-                        className="revi-btn h-9 px-4 text-xs bg-rose-950/60 text-rose-300 border-rose-800 hover:bg-rose-900/80"
+                        onClick={() => {
+                          setCvFile(null);
+                          removeSavedCV();
+                          setHasSavedCv(false);
+                        }}
+                        className="inline-flex items-center gap-1.5 text-xs text-rose-400 hover:text-rose-300 hover:underline font-mono"
                       >
-                        <Trash2 className="w-4 h-4 mr-1.5" />
-                        <span>Quitar archivo</span>
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Eliminar y cambiar archivo</span>
                       </button>
                     </div>
                   </div>
@@ -401,90 +487,108 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
                     onDragOver={handleDrag}
                     onDrop={handleDrop}
                     onClick={() => fileInputRef.current?.click()}
-                    className={`flex flex-col items-center justify-center p-10 border-[2px] border-dashed cursor-pointer transition-all max-w-xl mx-auto w-full ${dragActive
-                      ? 'border-brand-primary bg-surface-100'
-                      : 'border-surface-border bg-surface-300 hover:border-slate-500 hover:bg-surface-200'
+                    className={`border-2 border-dashed p-8 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center space-y-4 min-h-[260px] ${dragActive
+                      ? 'border-brand-cyan bg-brand-cyan/5 scale-[0.99]'
+                      : 'border-surface-border hover:border-brand-primary/60 bg-surface-300/50 hover:bg-surface-300'
                       }`}
                   >
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept=".pdf,application/pdf"
+                      accept=".pdf"
                       onChange={handleFileChange}
                       className="hidden"
                     />
-                    <div className="w-16 h-16 bg-surface-200 border-[2px] border-surface-border flex items-center justify-center text-brand-cyan mb-4 shadow-revi-sm rounded-full">
+                    <div className="p-4 bg-surface-200 border border-surface-border text-brand-cyan rounded-full">
                       <UploadCloud className="w-8 h-8" />
                     </div>
-                    <p className="text-sm font-bold text-white text-center uppercase tracking-wide">
-                      Arrastra tu CV en formato PDF
-                    </p>
-                    <p className="text-xs text-slate-400 text-center mt-2 font-normal">
-                      o haz clic para explorar tus archivos (máx. 10MB)
-                    </p>
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold text-white">
+                        Arrastra tu CV aquí o <span className="text-brand-cyan underline">explora tus archivos</span>
+                      </p>
+                      <p className="text-xs text-slate-400 font-mono">
+                        Formato PDF (Máx. 10MB)
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="flex-1 flex flex-col space-y-3 min-h-[280px]">
+              <div className="space-y-2">
                 <textarea
-                  rows={12}
                   value={cvText}
                   onChange={(e) => setCvText(e.target.value)}
-                  placeholder="Pega el contenido completo de tu CV (resumen, experiencia, habilidades técnicas)..."
-                  className="w-full flex-1 p-4 bg-surface-300 border-[2px] border-surface-border text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-primary leading-relaxed font-mono resize-none"
+                  maxLength={20000}
+                  placeholder={`Pega el contenido de tu currículum aquí...\n\nEjemplo:\nIGNACIO ARIAS\nSoftware Engineer | +56 9 9395 3191 | email@example.com\n\nEXPERIENCIA LABORAL\n- Desarrollé una plataforma de IA con React y FastAPI...`}
+                  className="w-full h-64 p-4 bg-surface-300 border-[2px] border-surface-border text-slate-100 text-xs font-mono placeholder:text-slate-500 focus:border-brand-cyan focus:outline-none resize-none leading-relaxed"
                 />
-
-                <div className="flex items-center justify-between text-xs font-mono">
+                <div className="flex items-center justify-between text-[11px] font-mono">
                   <div className="flex items-center gap-2">
-                    {hasSavedCv ? (
-                      <button
-                        type="button"
-                        onClick={handleClearSavedCv}
-                        className="text-rose-400 hover:underline flex items-center gap-1.5 font-bold"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Borrar CV guardado</span>
-                      </button>
-                    ) : (
-                      cvText.trim().length > 50 && (
+                    {cvText.length > 50 && (
+                      hasSavedCv ? (
+                        <span className="text-emerald-400 flex items-center gap-1 font-semibold">
+                          <Check className="w-3.5 h-3.5" />
+                          Guardado como CV predeterminado
+                        </span>
+                      ) : (
                         <button
                           type="button"
                           onClick={handleSaveCvAsDefault}
-                          className="text-brand-cyan hover:underline flex items-center gap-1.5 font-bold"
+                          className="text-brand-cyan hover:underline flex items-center gap-1 font-semibold"
                         >
                           <Bookmark className="w-3.5 h-3.5" />
-                          <span>Recordar mi CV en este navegador</span>
+                          Guardar como predeterminado
                         </button>
                       )
                     )}
                   </div>
-                  <span className="text-slate-500">
-                    {cvText.length} caracteres
+                  <span className={`${cvText.length > 18000 ? 'text-amber-400 font-bold' : 'text-slate-500'}`}>
+                    {cvText.length.toLocaleString('es-CL')} / 20.000 caracteres
                   </span>
                 </div>
               </div>
             )}
 
             <div className="flex justify-end pt-4 border-t-[2px] border-surface-border">
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={!canProceedToStep2() || isTransitioning}
-                className="revi-btn h-12 px-8 bg-brand-primary hover:bg-brand-hover text-white text-sm font-extrabold shadow-revi disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto flex justify-center items-center"
-              >
-                {isTransitioning ? (
-                  <span className="flex items-center gap-2">
-                    <span className="w-4 h-4 border-[2px] border-white/30 border-t-white rounded-full animate-spin"></span>
-                    Guardando...
-                  </span>
-                ) : (
-                  <span className="flex items-center">
-                    Siguiente Paso
-                    <ArrowRight className="w-4 h-4 ml-2 stroke-[3]" />
-                  </span>
-                )}
-              </button>
+              {appMode === 'optimize_cv' ? (
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={!canProceedToStep2() || isLoading || isProcessingPdf}
+                  className="revi-btn h-12 px-8 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white text-sm font-extrabold shadow-revi disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto flex justify-center items-center gap-2 cursor-pointer"
+                >
+                  {isLoading ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>{getStageMessage(pipelineStage)}</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <span>Optimizar mi CV</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </span>
+                  )}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={!canProceedToStep2() || isTransitioning}
+                  className="revi-btn h-12 px-8 bg-brand-primary hover:bg-brand-hover text-white text-sm font-extrabold shadow-revi disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto flex justify-center items-center cursor-pointer"
+                >
+                  {isTransitioning ? (
+                    <span className="flex items-center gap-2">
+                      <span className="w-4 h-4 border-[2px] border-white/30 border-t-white rounded-full animate-spin"></span>
+                      Guardando...
+                    </span>
+                  ) : (
+                    <span className="flex items-center">
+                      Siguiente Paso
+                      <ArrowRight className="w-4 h-4 ml-2 stroke-[3]" />
+                    </span>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -493,17 +597,17 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
           <div className="revi-card p-6 flex flex-col space-y-6 animate-in fade-in zoom-in-95 duration-300">
 
             {/* Active CV indicator banner */}
-            <div className="flex items-center justify-between p-3.5 bg-surface-300 border-[2px] border-surface-border text-xs rounded-none">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 rounded-none">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-surface-300 border-[2px] border-surface-border text-xs rounded-none">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2 bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 rounded-none shrink-0">
                   <FileCheck className="w-4 h-4" />
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono font-bold uppercase text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 border border-emerald-800/60">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-mono font-bold uppercase text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 border border-emerald-800/60 shrink-0">
                       CV Base Vinculado
                     </span>
-                    <span className="font-mono font-bold text-white text-xs">
+                    <span className="font-mono font-bold text-white text-xs truncate max-w-xs">
                       {cvMode === 'upload' && cvFile ? cvFile.name : 'CV en formato de texto'}
                     </span>
                   </div>
@@ -517,7 +621,7 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
               <button
                 type="button"
                 onClick={() => setWizardStep(1)}
-                className="text-xs font-mono font-bold text-brand-cyan hover:text-cyan-300 hover:underline px-2 py-1"
+                className="text-xs font-mono font-bold text-brand-cyan hover:text-cyan-300 hover:underline px-2 py-1 shrink-0 self-start sm:self-auto"
               >
                 Cambiar CV
               </button>
@@ -659,15 +763,15 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
               </div>
             ) : (
               <div className="flex flex-col space-y-4">
-                <div className="flex items-center justify-between border-b-[2px] border-surface-border pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-[2px] border-surface-border pb-3">
                   <div className="flex items-center gap-2">
-                    <Briefcase className="w-4 h-4 text-brand-cyan" />
+                    <Briefcase className="w-4 h-4 text-brand-cyan shrink-0" />
                     <span className="text-sm font-extrabold text-white uppercase tracking-wide">Contenido de la Oferta Laboral</span>
                   </div>
 
                   {jobSourceNotice ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 uppercase flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 uppercase flex items-center gap-1.5 shrink-0">
                         <CheckCircle2 className="w-3 h-3" />
                         {jobSourceNotice}
                       </span>
@@ -676,7 +780,7 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
                           href={jobUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[10px] font-mono font-bold text-brand-cyan hover:underline bg-surface-200 border border-surface-border px-2 py-0.5 uppercase flex items-center gap-1"
+                          className="text-[10px] font-mono font-bold text-brand-cyan hover:underline bg-surface-200 border border-surface-border px-2 py-0.5 uppercase flex items-center gap-1 shrink-0"
                         >
                           <span>Ver Empleo</span>
                           <ExternalLink className="w-3 h-3" />
@@ -684,7 +788,7 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
                       )}
                     </div>
                   ) : (
-                    <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">
+                    <span className="text-[10px] font-mono font-bold text-slate-400 uppercase shrink-0">
                       Ingreso Manual
                     </span>
                   )}
@@ -751,14 +855,18 @@ export const AnalyzerForm: React.FC<AnalyzerFormProps> = ({
                 <div className="flex-1 flex flex-col space-y-2">
                   <textarea
                     rows={12}
+                    maxLength={20000}
                     value={jobOfferText}
                     onChange={(e) => setJobOfferText(e.target.value)}
                     placeholder="Pega la descripción de la oferta laboral (requisitos, tecnologías y responsabilidades)..."
                     className="w-full flex-1 p-4 bg-surface-300 border-[2px] border-surface-border text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-primary leading-relaxed font-mono resize-none"
                   />
-                  <span className="text-[11px] font-mono text-slate-500 text-right">
-                    {jobOfferText.length} caracteres (mínimo 20)
-                  </span>
+                  <div className="flex items-center justify-between text-[11px] font-mono">
+                    <span className="text-slate-500">Mínimo 20 caracteres</span>
+                    <span className={`${jobOfferText.length > 18000 ? 'text-amber-400 font-bold' : 'text-slate-500'}`}>
+                      {jobOfferText.length.toLocaleString('es-CL')} / 20.000 caracteres
+                    </span>
+                  </div>
                 </div>
               </div>
             )}

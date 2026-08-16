@@ -7,11 +7,14 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 const BYOK_STORAGE_KEY = 'strapy_ats_byok_key';
+const BYOK_PROVIDER_KEY = 'strapy_ats_byok_provider';
 const BYOK_MODEL_KEY = 'strapy_ats_byok_model';
 const HISTORY_STORAGE_KEY = 'strapy_ats_history';
 const SAVED_CV_KEY = 'strapy_ats_saved_cv';
 const EXTRACTED_JOB_KEY = 'strapyats_extracted_job';
 const USER_PROFILE_KEY = 'strapyats_user_profile';
+
+export type AIProvider = 'auto' | 'gemini' | 'openai' | 'anthropic' | 'deepseek' | 'groq';
 
 export interface SavedCVData {
   name: string;
@@ -38,9 +41,33 @@ export function removeSavedApiKey(): void {
   localStorage.removeItem(BYOK_STORAGE_KEY);
 }
 
+export function getSavedProvider(): AIProvider {
+  if (typeof window === 'undefined') return 'auto';
+  return (localStorage.getItem(BYOK_PROVIDER_KEY) as AIProvider) || 'auto';
+}
+
+export function setSavedProvider(provider: string): void {
+  if (typeof window === 'undefined') return;
+  if (provider.trim()) {
+    localStorage.setItem(BYOK_PROVIDER_KEY, provider.trim());
+  } else {
+    localStorage.removeItem(BYOK_PROVIDER_KEY);
+  }
+}
+
+export function detectProviderFromKey(key: string): AIProvider {
+  const k = key.trim();
+  if (k.startsWith('AIza')) return 'gemini';
+  if (k.startsWith('sk-ant-')) return 'anthropic';
+  if (k.startsWith('gsk_')) return 'groq';
+  if (k.startsWith('sk-')) return 'openai';
+  if (k.toLowerCase().includes('deepseek')) return 'deepseek';
+  return 'gemini';
+}
+
 export function getSavedModel(): string {
-  if (typeof window === 'undefined') return 'gemini-3.5-flash-lite';
-  return localStorage.getItem(BYOK_MODEL_KEY) || 'gemini-3.5-flash-lite';
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem(BYOK_MODEL_KEY) || '';
 }
 
 export function setSavedModel(model: string): void {
@@ -66,11 +93,11 @@ export interface UserProfileData {
 export function getUserProfile(): UserProfileData {
   if (typeof window === 'undefined') {
     return {
-      name: 'Alex R. Dev',
-      email: 'alex.dev@example.com',
-      phone: '+56 9 1234 5678',
-      location: 'Santiago, Chile / Remoto',
-      linkedin: 'linkedin.com/in/alexdev',
+      name: '',
+      email: '',
+      phone: '',
+      location: '',
+      linkedin: '',
     };
   }
   try {
@@ -80,12 +107,50 @@ export function getUserProfile(): UserProfileData {
     // ignore
   }
   return {
-    name: 'Alex R. Dev',
-    email: 'alex.dev@example.com',
-    phone: '+56 9 1234 5678',
-    location: 'Santiago, Chile / Remoto',
-    linkedin: 'linkedin.com/in/alexdev',
+    name: '',
+    email: '',
+    phone: '',
+    location: '',
+    linkedin: '',
   };
+}
+
+export function extractContactInfoFromText(text: string): Partial<UserProfileData> {
+  if (!text) return {};
+  const result: Partial<UserProfileData> = {};
+
+  // Email
+  const emailMatch = text.match(/[\w.-]+@[\w.-]+\.\w+/);
+  if (emailMatch) result.email = emailMatch[0];
+
+  // Phone (international or local format)
+  const phoneMatches = text.match(/(?:\+?\d{1,3}[\s-]?)?(?:\(?\d{1,4}\)?[\s-]?)?\d{3,4}[\s-]?\d{3,4}/g);
+  if (phoneMatches) {
+    const validPhone = phoneMatches.find(p => p.replace(/\D/g, '').length >= 8);
+    if (validPhone) {
+      // Clean stray parens, symbols, and extra spaces
+      let cleanPhone = validPhone.replace(/[^\d+]/g, ' ').replace(/\s+/g, ' ').trim();
+      if (cleanPhone.startsWith('+56') && cleanPhone.length > 4) {
+        const digits = cleanPhone.slice(3).replace(/\D/g, '');
+        if (digits.length === 9) {
+          cleanPhone = `+56 ${digits[0]} ${digits.slice(1, 5)} ${digits.slice(5)}`;
+        }
+      }
+      result.phone = cleanPhone;
+    }
+  }
+
+  // Name (first valid non-empty line, omitting PDF page headers)
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  for (const line of lines) {
+    if (/^---\s*Page/i.test(line) || /^PAGE\s*\d+/i.test(line) || line.length < 3) continue;
+    if (line.length < 45 && !line.includes('@') && !line.includes('http') && !line.includes(':') && !line.includes('/') && !line.includes('•')) {
+      result.name = line;
+      break;
+    }
+  }
+
+  return result;
 }
 
 export function setUserProfile(profile: Partial<UserProfileData>): void {

@@ -31,7 +31,7 @@ A diferencia de los verificadores simples de CV basados en prompts básicos, **S
 ## ⚡ Características Principales
 
 - 🤖 **Pipeline Multi-Agente**: Orquestado con **LangGraph** a través de 4 nodos deterministas (`Match Scorer` ➔ `ATS Auditor` ➔ `CV Rewriter` ➔ `Interview Simulator`).
-- ⚡ **Cascada de Modelos Gemini**: Modelo principal **Gemini 3.5 Flash-Lite** con tolerancia a fallos automática (`3.5 Flash-Lite` ➔ `3.1 Flash-Lite` ➔ `2.5 Flash`).
+- ⚡ **Cascada de Modelos Gemini**: Modelo principal **Gemini 3.5 Flash-Lite** con tolerancia a fallos automática (`3.5 Flash-Lite` ➔ `3.5 Flash` ➔ `3.1 Flash-Lite` ➔ `2.5 Flash` ➔ `2.5 Pro`).
 - 🧠 **Búsqueda Vectorial Semántica (RAG)**: Indexación y embeddings de fragmentos del CV en **ChromaDB** para calcular similitud coseno contra los requisitos de la vacante.
 - 🔐 **Privacidad Total & Modelo BYOK**: Procesamiento 100% en memoria (sin retención de CVs) + soporte **BYOK** (Bring Your Own Key) para usar tu propia API Key de Google AI Studio.
 - 🧩 **Extensión de Chrome (Manifest V3)**: Extracción en 1 clic de ofertas laborales directamente desde LinkedIn, GetOnBoard, Indeed y portales de empleo.
@@ -65,31 +65,37 @@ flowchart TD
     end
 
     subgraph LLMCluster["⚡ Motor de Inferencia LLM"]
-        LLM[Google Gemini 3.5 Flash-Lite\nFallback: 3.1 Flash-Lite / 2.5 Flash]
+        LLM[Google Gemini 3.5 Flash-Lite\nFallback: 3.5 Flash / 3.1 Flash-Lite / 2.5 Flash]
+    end
+    
+    subgraph Storage & Observability
+        Chroma[(ChromaDB\nPersistent VectorStore)]
+        Langfuse[Langfuse Cloud\nDistributed Tracing]
     end
 
-    A -->|POST /analyze| C
-    B -->|Extracción de Oferta| C
-    C --> RL --> N1
-    N1 <--> DB
-    N1 --> N2 --> N3 --> N4
-    N1 -.-> LLM
-    N2 -.-> LLM
-    N3 -.-> LLM
-    N4 -.-> LLM
-    N4 -->|Respuesta JSON Estructurada| A
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+
+    B -. Embeddings .-> Chroma
+    C -. LLM Call .-> LLM
+    D -. LLM Call .-> LLM
+    E -. LLM Call .-> LLM
+    F -. Trace Logs .-> Langfuse
 ```
 
 ---
 
 ## 🛠️ Stack Tecnológico
 
-| Capa | Tecnología |
+| Capa | Tecnologías |
 | :--- | :--- |
 | **Backend API** | FastAPI (Python 3.11), Pydantic v2, Uvicorn |
 | **Orquestación de IA** | LangGraph, LangChain Core |
 | **Base de Datos Vectorial (RAG)** | ChromaDB PersistentClient |
-| **Modelos LLM** | Google Gemini (3.5 Flash-Lite, 3.1 Flash-Lite, 2.5 Flash) |
+| **Modelos LLM** | Google Gemini (3.5 Flash-Lite, 3.5 Flash, 3.1 Flash-Lite, 2.5 Flash, 2.5 Pro) |
 | **Observabilidad de LLMs** | Langfuse Cloud |
 | **Frontend Web** | Next.js 14 (App Router), React 18, Tailwind CSS, Lucide Icons |
 | **Generación de PDF** | Client-Side `@media print` / CSS especializado ATS |
@@ -173,7 +179,7 @@ cp .env.example .env
 Configura tu archivo `backend/.env`:
 ```env
 GOOGLE_API_KEY=tu_clave_de_gemini_aqui
-GEMINI_MODEL=gemini-3.5-flash-lite
+GEMINI_MODEL=gemini-2.0-flash
 ENVIRONMENT=development
 MAX_REQUESTS_PER_IP_PER_DAY=9999
 CHROMA_PERSIST_PATH=./chroma_db

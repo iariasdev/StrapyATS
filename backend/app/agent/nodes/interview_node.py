@@ -20,25 +20,21 @@ async def run_interview_node(state: Dict[str, Any]) -> Dict[str, Any]:
     gaps_text = "\n".join([f"- {g.get('keyword')}: {g.get('context')}" for g in ats_gaps if isinstance(g, dict)])
 
     try:
-        from app.agent.llm import invoke_gemini_with_fallback
+        from app.agent.llm import invoke_gemini_with_fallback, safe_json_loads
         prompt = INTERVIEW_SIMULATOR_PROMPT.format(
             job_offer_text=job_offer_text,
-            cv_text=cv_text[:3000],
+            cv_text=cv_text[:15000],
             ats_gaps_text=gaps_text,
         )
         content = await invoke_gemini_with_fallback(
             prompt, 
             api_key=api_key, 
             temperature=0.4,
-            preferred_model=state.get("preferred_model")
+            preferred_model=state.get("preferred_model"),
+            provider=state.get("byok_provider")
         )
 
-        if "```json" in content:
-            content = content.split("```json")[1].split("```")[0].strip()
-        elif "```" in content:
-            content = content.split("```")[1].split("```")[0].strip()
-
-        parsed = json.loads(content)
+        parsed = safe_json_loads(content)
         questions = parsed.get("interview_questions", [])
         return {"interview_questions": questions}
     except Exception as e:

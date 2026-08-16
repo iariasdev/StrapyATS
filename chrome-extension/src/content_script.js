@@ -150,29 +150,152 @@
         border: 2px solid #0085f4;
         color: #fff;
         padding: 14px 18px;
-        border-radius: 4px;
-        box-shadow: 4px 4px 0px #000;
+        border-radius: 6px;
+        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.8), 0 0 15px rgba(0, 133, 244, 0.3);
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         font-size: 13px;
-        max-width: 400px;
+        max-width: 420px;
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 8px;
       `;
       document.body.appendChild(widget);
     }
     widget.innerHTML = `
       <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-        <span style="font-weight: 900; color: #00d2ff; font-family: monospace; font-size: 11px; text-transform: uppercase;">
+        <span style="font-weight: 900; color: #00d2ff; font-family: monospace; font-size: 11px; text-transform: uppercase; display: flex; align-items: center; gap: 4px;">
           ⚡ StrapyATS Autofill
         </span>
-        <button id="strapyats-close-widget" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 14px;">✕</button>
+        <button id="strapyats-close-widget" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 14px; padding: 0 4px;">✕</button>
       </div>
-      <div style="color: ${type === 'success' ? '#4ade80' : type === 'error' ? '#f87171' : '#e2e8f0'}; font-weight: 600; line-height: 1.4;">
+      <div style="color: ${type === 'success' ? '#4ade80' : type === 'error' ? '#f87171' : '#e2e8f0'}; font-weight: 500; line-height: 1.45;">
         ${message}
       </div>
     `;
     document.getElementById('strapyats-close-widget')?.addEventListener('click', () => widget.remove());
+  }
+
+  function formatPhoneForLinkedIn(phone) {
+    if (!phone) return '';
+    const digits = phone.replace(/\D/g, '');
+    // Si incluye código de país chileno 56 y tiene 10 u 11 dígitos (ej: 56993953191)
+    if (digits.startsWith('56') && digits.length >= 10) {
+      return digits.slice(2);
+    }
+    // Si ya son 8 a 10 dígitos (ej: 993953191)
+    if (digits.length >= 8 && digits.length <= 10) {
+      return digits;
+    }
+    return phone.replace(/[^\d+]/g, '').trim() || digits;
+  }
+
+  function setNativeInputValue(input, value) {
+    if (!input || !value) return;
+    input.focus();
+    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+    if (nativeSetter) {
+      nativeSetter.call(input, value);
+    } else {
+      input.value = value;
+    }
+    input.dispatchEvent(new Event('input', { bubbles: true, cancelable: true, composed: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true, cancelable: true, composed: true }));
+    input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: '0' }));
+    input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: '0' }));
+    input.dispatchEvent(new Event('blur', { bubbles: true, composed: true }));
+  }
+
+  function findPhoneInputInModal(modal) {
+    const scope = modal || document;
+
+    // 1. Direct inputs by type or attributes (Priority 1)
+    const inputs = Array.from(scope.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="file"])'));
+    for (const inp of inputs) {
+      const type = (inp.getAttribute('type') || '').toLowerCase();
+      const id = (inp.id || '').toLowerCase();
+      const name = (inp.name || '').toLowerCase();
+      const aria = (inp.getAttribute('aria-label') || '').toLowerCase();
+      const auto = (inp.getAttribute('autocomplete') || '').toLowerCase();
+
+      if (
+        type === 'tel' ||
+        id.includes('phone') || id.includes('mobile') || id.includes('celular') || id.includes('tel') ||
+        name.includes('phone') || name.includes('mobile') || name.includes('celular') || name.includes('tel') ||
+        aria.includes('phone') || aria.includes('teléfono') || aria.includes('telefono') || aria.includes('móvil') || aria.includes('movil') ||
+        auto.includes('tel')
+      ) {
+        return inp;
+      }
+    }
+
+    // 2. Search by nearby label or span text (Priority 2)
+    const allLabels = Array.from(scope.querySelectorAll('label, .artdeco-text-input--label, span, div'));
+    for (const lbl of allLabels) {
+      const txt = (lbl.innerText || lbl.textContent || '').toLowerCase().trim();
+      if (
+        txt.includes('teléfono') || 
+        txt.includes('telefono') || 
+        txt.includes('móvil') || 
+        txt.includes('movil') || 
+        txt.includes('celular') || 
+        txt.includes('phone') || 
+        txt.includes('mobile')
+      ) {
+        const forId = lbl.getAttribute('for');
+        if (forId) {
+          const inp = document.getElementById(forId);
+          if (inp && inp.tagName === 'INPUT') return inp;
+        }
+        const container = lbl.closest('.fb-single-line-text, .artdeco-text-input, .jobs-easy-apply-form-element, div') || lbl.parentElement;
+        if (container) {
+          const inp = container.querySelector('input:not([type="hidden"])');
+          if (inp) return inp;
+        }
+      }
+    }
+
+    // 3. Fallback: First text input on contact step that is NOT email or search (Priority 3)
+    for (const inp of inputs) {
+      const type = (inp.getAttribute('type') || 'text').toLowerCase();
+      const val = (inp.value || '').toLowerCase();
+      const id = (inp.id || '').toLowerCase();
+      const name = (inp.name || '').toLowerCase();
+      const aria = (inp.getAttribute('aria-label') || '').toLowerCase();
+
+      if (type !== 'email' && !val.includes('@') && !id.includes('email') && !name.includes('email') && !aria.includes('email') && !id.includes('search') && !name.includes('search')) {
+        return inp;
+      }
+    }
+
+    return null;
+  }
+
+  function findNextButtonInModal(modal) {
+    const scope = modal || document;
+    const buttons = Array.from(scope.querySelectorAll('button, [role="button"]'));
+    for (const btn of buttons) {
+      const text = (btn.innerText || btn.textContent || '').toLowerCase().trim();
+      const aria = (btn.getAttribute('aria-label') || '').toLowerCase();
+      if (
+        text === 'siguiente' || 
+        text === 'next' || 
+        text === 'continuar' || 
+        text === 'revisar' || 
+        text === 'review' ||
+        text.includes('siguiente') || 
+        text.includes('next') || 
+        text.includes('continuar') || 
+        text.includes('revisar') || 
+        text.includes('review') ||
+        aria.includes('siguiente') || 
+        aria.includes('next') || 
+        aria.includes('continuar') ||
+        btn.hasAttribute('data-easy-apply-next-button')
+      ) {
+        return btn;
+      }
+    }
+    return scope.querySelector('footer button.artdeco-button--primary, button.artdeco-button--primary');
   }
 
   function runLinkedInAutoApply() {
@@ -184,27 +307,30 @@
 
       showWidget('⚡ Iniciando postulación con tu CV Optimizado...');
 
-      // Step 1: Click Easy Apply button if modal not yet open
       const clickApplyButton = () => {
         const modal = document.querySelector('.jobs-easy-apply-modal, div[data-easy-apply-modal], .artdeco-modal');
-        if (modal) return;
+        if (modal) return true;
 
         const applyBtn = document.querySelector(
-          'button.jobs-apply-button, button[aria-label*="Solicitud sencilla"], button[aria-label*="Easy Apply"], button.jobs-apply-button--top-card'
+          'button.jobs-apply-button, button[aria-label*="Solicitud sencilla" i], button[aria-label*="Easy Apply" i], button.jobs-apply-button--top-card, button[data-job-id]'
         );
         if (applyBtn) {
-          showWidget('Abriendo formulario de Solicitud Sencilla...');
+          showWidget('Abriendo formulario de Solicitud Sencilla en LinkedIn...');
           applyBtn.click();
+          return true;
         }
+        return false;
       };
 
       clickApplyButton();
 
-      // Step 2 & 3: Watch modal progress (Phone fill + CV upload)
       let attempts = 0;
+      let hasInjectedCV = false;
+      let hasFilledPhone = false;
+
       const interval = setInterval(() => {
         attempts++;
-        if (attempts > 60) {
+        if (attempts > 80) {
           clearInterval(interval);
           return;
         }
@@ -215,63 +341,90 @@
           return;
         }
 
-        // 1. Phone number fill (Step 1)
-        const phoneInput = modal.querySelector('input[id*="phoneNumber"], input[id*="phone-number"], input[name*="phoneNumber"], input[type="tel"]');
-        if (phoneInput && (!phoneInput.value || phoneInput.value.trim().length < 4)) {
-          if (applyData.candidate && applyData.candidate.phone) {
-            phoneInput.value = applyData.candidate.phone;
-            phoneInput.dispatchEvent(new Event('input', { bubbles: true }));
-            phoneInput.dispatchEvent(new Event('change', { bubbles: true }));
-          }
-        }
+        const modalText = (modal.innerText || '').toLowerCase();
+        const isContactStep = modalText.includes('contacto') || modalText.includes('contact');
+        const isResumeStep = modalText.includes('currículum') || modalText.includes('curriculum') || modalText.includes('resume') || modalText.includes('cv');
 
-        // 2. File input check (Step 2: Currículum)
-        const fileInput = modal.querySelector('input[type="file"][id*="jobs-document-upload"], input[type="file"][name*="file"], input[type="file"]');
-        if (fileInput && !fileInput.dataset.strapyatsInjected) {
-          fileInput.dataset.strapyatsInjected = 'true';
-          showWidget('Inyectando CV adaptado en LinkedIn...');
+        // --- STEP 1: Contact Information (Phone Fill & Next Step) ---
+        if (isContactStep && !hasFilledPhone) {
+          const phoneInput = findPhoneInputInModal(modal);
+          const candidatePhone = applyData.candidate?.phone || '';
 
-          try {
-            const byteCharacters = atob(applyData.pdfBase64);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-              byteNumbers[i] = byteCharacters.charCodeAt(i);
+          if (phoneInput) {
+            const currentVal = (phoneInput.value || '').trim();
+            const formattedPhone = formatPhoneForLinkedIn(candidatePhone);
+
+            if (formattedPhone && formattedPhone.length >= 5 && (!currentVal || currentVal.length < 5)) {
+              setNativeInputValue(phoneInput, formattedPhone);
+              hasFilledPhone = true;
+              showWidget(`📞 Teléfono completado (<strong>${formattedPhone}</strong>). Avanzando...`);
+              
+              setTimeout(() => {
+                const nextBtn = findNextButtonInModal(modal);
+                if (nextBtn && !nextBtn.disabled) nextBtn.click();
+              }, 450);
+            } else if (currentVal && currentVal.length >= 5) {
+              hasFilledPhone = true;
+              showWidget(`📞 Teléfono verificado. Avanzando al paso de CV...`);
+              setTimeout(() => {
+                const nextBtn = findNextButtonInModal(modal);
+                if (nextBtn && !nextBtn.disabled) nextBtn.click();
+              }, 450);
+            } else {
+              showWidget('👉 Ingresa tu número de teléfono y haz clic en <strong>"Siguiente"</strong>. StrapyATS adjuntará automáticamente tu CV.', 'info');
             }
-            const byteArray = new Uint8Array(byteNumbers);
-            const blob = new Blob([byteArray], { type: 'application/pdf' });
-            const fileName = applyData.fileName || 'CV_Optimizado_ATS.pdf';
-            const file = new File([blob], fileName, { type: 'application/pdf', lastModified: Date.now() });
-
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(file);
-            fileInput.files = dataTransfer.files;
-            fileInput.dispatchEvent(new Event('input', { bubbles: true }));
-            fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-
-            showWidget(`✅ CV Optimizado cargado con éxito (${fileName}). Responde las preguntas finales de la empresa.`, 'success');
-
-            chrome.storage.local.set({
-              strapyats_auto_apply: { ...applyData, status: 'completed' }
-            });
-
-            clearInterval(interval);
-          } catch (err) {
-            console.error('Error al inyectar CV en LinkedIn:', err);
-            showWidget('No se pudo adjuntar el PDF automáticamente. Puedes seleccionarlo manualmente con "Cargar currículum".', 'error');
-            clearInterval(interval);
-          }
-          return;
-        }
-
-        // 3. Next step button click if we are on step 1 without file input
-        if (!fileInput) {
-          const nextBtn = modal.querySelector('button.artdeco-button--primary, button[aria-label*="siguiente"], button[aria-label*="Next"]');
-          if (nextBtn && nextBtn.innerText && nextBtn.innerText.match(/siguiente|next/i)) {
-            showWidget('Avanzando al paso de currículum...');
-            nextBtn.click();
+          } else {
+            showWidget('👉 Haz clic en <strong>"Siguiente"</strong> para continuar al paso del CV.', 'info');
           }
         }
-      }, 500);
+
+        // --- STEP 2: Resume Upload ---
+        const fileInput = modal.querySelector('input[type="file"]');
+        if (fileInput && !hasInjectedCV) {
+          // If modal shows "Cargar currículum" button (because of existing CVs), trigger it
+          const uploadLabel = modal.querySelector('label[for*="jobs-document-upload"], .jobs-document-upload__upload-button, button[aria-label*="Cargar currículum" i]');
+          if (uploadLabel && !fileInput.dataset.strapyatsInjected) {
+            try { uploadLabel.click(); } catch (_) {}
+          }
+
+          if (!fileInput.dataset.strapyatsInjected) {
+            fileInput.dataset.strapyatsInjected = 'true';
+            hasInjectedCV = true;
+
+            showWidget('Inyectando CV adaptado en LinkedIn...');
+
+            try {
+              const byteCharacters = atob(applyData.pdfBase64);
+              const byteNumbers = new Array(byteCharacters.length);
+              for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+              }
+              const byteArray = new Uint8Array(byteNumbers);
+              const blob = new Blob([byteArray], { type: 'application/pdf' });
+              const fileName = applyData.fileName || 'CV_Optimizado_ATS.pdf';
+              const file = new File([blob], fileName, { type: 'application/pdf', lastModified: Date.now() });
+
+              const dataTransfer = new DataTransfer();
+              dataTransfer.items.add(file);
+              fileInput.files = dataTransfer.files;
+              fileInput.dispatchEvent(new Event('input', { bubbles: true }));
+              fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+              showWidget(`✅ ¡CV Optimizado cargado con éxito! (<strong>${fileName}</strong>)<br/><span style="color:#94a3b8; font-size:11px;">Revisa las preguntas adicionales y confirma tu postulación.</span>`, 'success');
+
+              chrome.storage.local.set({
+                strapyats_auto_apply: { ...applyData, status: 'completed' }
+              });
+
+              clearInterval(interval);
+            } catch (err) {
+              console.error('Error al inyectar CV en LinkedIn:', err);
+              showWidget('⚠️ No se pudo inyectar el archivo automáticamente. Selecciona el archivo descargado usando "Cargar currículum".', 'error');
+              clearInterval(interval);
+            }
+          }
+        }
+      }, 450);
     });
   }
 
@@ -305,3 +458,4 @@
     return true;
   });
 })();
+

@@ -13,10 +13,45 @@ export interface InterviewQuestion {
   suggested_answer_tip: string;
 }
 
+export interface WorkExperience {
+  role: string;
+  company: string;
+  period?: string;
+  location?: string;
+  bullets: string[];
+}
+
+export interface EducationItem {
+  degree: string;
+  institution: string;
+  period?: string;
+  details?: string;
+}
+
+export interface CategorizedSkills {
+  languages?: string[];
+  frontend?: string[];
+  backend_cloud?: string[];
+  testing_tools?: string[];
+}
+
 export interface RewrittenCV {
+  candidate_name?: string;
+  candidate_title?: string;
+  candidate_email?: string;
+  candidate_phone?: string;
+  candidate_location?: string;
+  candidate_linkedin?: string;
+  candidate_github?: string;
+  candidate_portfolio?: string;
   summary: string;
-  experience_bullets: string[];
+  skills_categories?: CategorizedSkills;
   skills_added: string[];
+  experiences?: WorkExperience[];
+  experience_bullets: string[];
+  education?: EducationItem[];
+  certificaciones?: string[];
+  languages_spoken?: string[];
   formatting_tips: string[];
 }
 

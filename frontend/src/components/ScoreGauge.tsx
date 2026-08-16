@@ -7,11 +7,13 @@ import { Award, CheckCircle2, AlertTriangle, XCircle, Sparkles } from 'lucide-re
 interface ScoreGaugeProps {
   score: number;
   seniorityMatch: string;
+  summaryVerdict?: string | null;
 }
 
 export const ScoreGauge: React.FC<ScoreGaugeProps> = ({
   score,
   seniorityMatch,
+  summaryVerdict,
 }) => {
   const scoreInfo = getScoreDetails(score);
 
@@ -78,9 +80,16 @@ export const ScoreGauge: React.FC<ScoreGaugeProps> = ({
               )}
             </div>
 
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-medium">
-              {scoreInfo.description}
-            </p>
+            <div className="space-y-1">
+              <p className="text-xs sm:text-sm text-slate-200 leading-relaxed font-medium">
+                {summaryVerdict || scoreInfo.description}
+              </p>
+              {summaryVerdict && (
+                <p className="text-xs text-slate-400 font-normal">
+                  {scoreInfo.description}
+                </p>
+              )}
+            </div>
           </div>
 
         </div>

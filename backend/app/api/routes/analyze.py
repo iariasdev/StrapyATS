@@ -17,8 +17,9 @@ async def analyze_cv(
     cv_file: Optional[UploadFile] = File(None, description="CV in PDF format"),
     cv_text: Optional[str] = Form(None, description="Raw text of candidate CV (if not uploading PDF file)"),
     job_offer_text: str = Form(..., description="Job offer text or extracted content"),
-    byok_api_key: Optional[str] = Form(None, description="Optional: user's own Google AI Studio API Key (BYOK)"),
-    model_name: Optional[str] = Form(None, description="Optional: user's preferred Gemini model"),
+    byok_api_key: Optional[str] = Form(None, description="Optional: user's own API Key (BYOK)"),
+    byok_provider: Optional[str] = Form(None, description="Optional: AI provider ('gemini' | 'openai' | 'anthropic' | 'deepseek' | 'groq' | 'auto')"),
+    model_name: Optional[str] = Form(None, description="Optional: user's preferred model"),
 ):
     """
     Main endpoint: receives a CV (PDF or raw text) and target job offer text,
@@ -37,7 +38,7 @@ async def analyze_cv(
             status_code=429,
             detail=(
                 "Daily free analysis limit reached for your IP (2 requests/day). "
-                "Please enter your own free Google AI Studio API Key in the BYOK field to continue immediately."
+                "Please enter your own free API Key (Google AI Studio, OpenAI, Claude, DeepSeek, Groq) in BYOK to continue immediately."
             )
         )
 
@@ -66,7 +67,8 @@ async def analyze_cv(
             cv_text=final_cv_text,
             job_offer_text=job_offer_text,
             byok_api_key=byok_api_key,
-            preferred_model=model_name
+            preferred_model=model_name,
+            byok_provider=byok_provider
         )
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
@@ -105,9 +107,22 @@ async def analyze_cv(
 
     raw_rewritten = pipeline_result.get("rewritten_cv", {})
     rewritten_model = RewrittenCV(
-        summary=raw_rewritten.get("summary", "Results-driven engineer..."),
-        experience_bullets=raw_rewritten.get("experience_bullets", []),
+        candidate_name=raw_rewritten.get("candidate_name") or "",
+        candidate_title=raw_rewritten.get("candidate_title") or "",
+        candidate_email=raw_rewritten.get("candidate_email") or "",
+        candidate_phone=raw_rewritten.get("candidate_phone") or "",
+        candidate_location=raw_rewritten.get("candidate_location") or "",
+        candidate_linkedin=raw_rewritten.get("candidate_linkedin") or "",
+        candidate_github=raw_rewritten.get("candidate_github") or "",
+        candidate_portfolio=raw_rewritten.get("candidate_portfolio") or "",
+        summary=raw_rewritten.get("summary", "Resumen profesional adaptado para ATS..."),
+        skills_categories=raw_rewritten.get("skills_categories") or {},
         skills_added=raw_rewritten.get("skills_added", []),
+        experiences=raw_rewritten.get("experiences") or [],
+        experience_bullets=raw_rewritten.get("experience_bullets", []),
+        education=raw_rewritten.get("education") or [],
+        certificaciones=raw_rewritten.get("certificaciones") or [],
+        languages_spoken=raw_rewritten.get("languages_spoken") or [],
         formatting_tips=raw_rewritten.get("formatting_tips", [])
     )
 
@@ -152,7 +167,8 @@ async def analyze_cv_json(
             cv_text=payload.cv_text,
             job_offer_text=payload.job_offer_text,
             byok_api_key=payload.byok_api_key,
-            preferred_model=payload.model_name
+            preferred_model=payload.model_name,
+            byok_provider=payload.byok_provider
         )
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
@@ -181,9 +197,22 @@ async def analyze_cv_json(
 
     raw_rewritten = pipeline_result.get("rewritten_cv", {})
     rewritten_model = RewrittenCV(
+        candidate_name=raw_rewritten.get("candidate_name") or "",
+        candidate_title=raw_rewritten.get("candidate_title") or "",
+        candidate_email=raw_rewritten.get("candidate_email") or "",
+        candidate_phone=raw_rewritten.get("candidate_phone") or "",
+        candidate_location=raw_rewritten.get("candidate_location") or "",
+        candidate_linkedin=raw_rewritten.get("candidate_linkedin") or "",
+        candidate_github=raw_rewritten.get("candidate_github") or "",
+        candidate_portfolio=raw_rewritten.get("candidate_portfolio") or "",
         summary=raw_rewritten.get("summary", ""),
-        experience_bullets=raw_rewritten.get("experience_bullets", []),
+        skills_categories=raw_rewritten.get("skills_categories") or {},
         skills_added=raw_rewritten.get("skills_added", []),
+        experiences=raw_rewritten.get("experiences") or [],
+        experience_bullets=raw_rewritten.get("experience_bullets", []),
+        education=raw_rewritten.get("education") or [],
+        certificaciones=raw_rewritten.get("certificaciones") or [],
+        languages_spoken=raw_rewritten.get("languages_spoken") or [],
         formatting_tips=raw_rewritten.get("formatting_tips", [])
     )
 

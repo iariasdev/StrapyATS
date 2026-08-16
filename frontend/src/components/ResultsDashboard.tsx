@@ -49,22 +49,31 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
     setIsApplying(true);
 
     const profile = getUserProfile();
-    const candidateName = profile.name || 'Candidato';
+    const rc = result.rewritten_cv || ({} as any);
+    const candidateName = profile.name || rc.candidate_name || 'Candidato';
+    const candidateContact = {
+      name: candidateName,
+      title: rc.candidate_title || result.seniority_match || 'Software Engineer',
+      email: profile.email || rc.candidate_email || '',
+      phone: profile.phone || rc.candidate_phone || '',
+      location: profile.location || rc.candidate_location || '',
+      linkedin: profile.linkedin || rc.candidate_linkedin || '',
+      github: rc.candidate_github || '',
+      portfolio: rc.candidate_portfolio || '',
+    };
     const fileName = `CV_${candidateName.replace(/\s+/g, '_')}_ATS.pdf`;
 
-    // 1. Generate ATS PDF binary
+    // 1. Generate ATS PDF binary with all projects, education & certifications
     const pdfData = generateATSPdf({
-      candidate: {
-        name: candidateName,
-        title: result.seniority_match || 'Software Engineer',
-        email: profile.email || '',
-        phone: profile.phone || '',
-        location: profile.location || '',
-        linkedin: profile.linkedin || ''
-      },
-      summary: result.rewritten_cv?.summary || '',
-      skills: result.rewritten_cv?.skills_added || [],
-      bullets: result.rewritten_cv?.experience_bullets || []
+      candidate: candidateContact,
+      summary: rc.summary || '',
+      skills_categories: rc.skills_categories,
+      skills: rc.skills_added || [],
+      experiences: rc.experiences || [],
+      bullets: rc.experience_bullets || [],
+      education: rc.education || [],
+      certificaciones: rc.certificaciones || [],
+      languages_spoken: rc.languages_spoken || [],
     });
 
     // 2. Trigger automatic local PDF download
@@ -75,17 +84,22 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
       type: 'STRAPYATS_TRIGGER_AUTO_APPLY',
       payload: {
         targetUrl: result.job_url,
-        candidate: profile,
+        candidate: candidateContact,
         fileName: fileName,
         pdfBase64: pdfData.base64
       }
     }, '*');
 
-    // 4. Open the job listing tab
-    setTimeout(() => {
-      window.open(result.job_url || '', '_blank');
-      setTimeout(() => setIsApplying(false), 2000);
-    }, 400);
+    // 4. Open the job listing tab only as fallback if extension is not present
+    const isExtensionActive = typeof window !== 'undefined' && Boolean((window as any).__STRAPYATS_EXTENSION_ACTIVE__);
+    if (!isExtensionActive) {
+      setTimeout(() => {
+        window.open(result.job_url || '', '_blank');
+        setIsApplying(false);
+      }, 400);
+    } else {
+      setTimeout(() => setIsApplying(false), 1500);
+    }
   };
 
   const handleCopyCoverLetter = () => {
@@ -113,114 +127,100 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
   });
 
   return (
-    <div className="space-y-8 font-sans">
+    <div className="space-y-6 font-sans">
       
-      {/* Score Gauge & System Verdict */}
-      <div className="space-y-4">
-        <ScoreGauge 
-          score={result.match_score} 
-          seniorityMatch={result.seniority_match} 
-        />
+      {/* Top Header Action Bar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-1 border-b-[2px] border-surface-border no-print">
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-cyan/10 border border-brand-cyan/40 text-brand-cyan text-xs font-mono font-black uppercase">
+            <Sparkles className="w-3.5 h-3.5" />
+            Reporte de Compatibilidad
+          </span>
+          {result.company_name && (
+            <span className="text-xs font-mono text-slate-300">
+              Oferta: <strong className="text-white">{result.company_name}</strong>
+            </span>
+          )}
+        </div>
 
-        {result.summary_verdict && (
-          <div className="revi-card p-6 space-y-2">
-            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-brand-cyan font-mono">
-              <Sparkles className="w-4 h-4" />
-              <span>[ DIAGNÓSTICO ATS &amp; VEREDICTO ]</span>
-            </div>
-            <p className="text-sm text-slate-300 leading-relaxed font-medium">
-              {result.summary_verdict}
-            </p>
-          </div>
-        )}
+        <button
+          type="button"
+          onClick={onReset}
+          className="revi-btn h-9 px-4 text-xs bg-surface-200 hover:bg-surface-100 text-white border-[2px] border-surface-border flex items-center gap-2 shadow-revi-sm transition-all shrink-0"
+        >
+          <RotateCcw className="w-3.5 h-3.5 text-brand-cyan" />
+          <span>Nueva Auditoría</span>
+        </button>
       </div>
 
-      {/* Tabs Navigation Bar (Revi Celeste Style) */}
-      <div className="flex flex-wrap items-center justify-between gap-3 no-print">
-        <div className="flex flex-wrap items-center gap-2">
-          
-          <button
-            onClick={() => setActiveTab('cv')}
-            className={`revi-btn h-10 px-4 text-xs ${
-              activeTab === 'cv'
-                ? 'bg-brand-primary text-white shadow-revi'
-                : 'bg-surface-100 hover:bg-surface-50 text-slate-300'
-            }`}
-          >
-            <FileText className="w-4 h-4 mr-1.5" />
-            <span>1. CV Reescrito</span>
-          </button>
+      {/* Score Gauge & Verdict (Integrated) */}
+      <ScoreGauge 
+        score={result.match_score} 
+        seniorityMatch={result.seniority_match}
+        summaryVerdict={result.summary_verdict}
+      />
 
-          <button
-            onClick={() => setActiveTab('gaps')}
-            className={`revi-btn h-10 px-4 text-xs ${
-              activeTab === 'gaps'
-                ? 'bg-brand-primary text-white shadow-revi'
-                : 'bg-surface-100 hover:bg-surface-50 text-slate-300'
-            }`}
-          >
-            <Target className="w-4 h-4 mr-1.5" />
-            <span>2. Brechas ATS ({result.ats_gaps?.length || 0})</span>
-          </button>
+      {/* Tabs Navigation Bar - Single Line (Revi Celeste Style) */}
+      <div className="flex items-center gap-2 overflow-x-auto no-print scrollbar-none pb-1 w-full">
+        <button
+          onClick={() => setActiveTab('cv')}
+          className={`revi-btn h-10 px-4 text-xs whitespace-nowrap shrink-0 ${
+            activeTab === 'cv'
+              ? 'bg-brand-primary text-white shadow-revi'
+              : 'bg-surface-100 hover:bg-surface-50 text-slate-300'
+          }`}
+        >
+          <FileText className="w-4 h-4 mr-1.5" />
+          <span>1. CV Reescrito</span>
+        </button>
 
-          <button
-            onClick={() => setActiveTab('cover_letter')}
-            className={`revi-btn h-10 px-4 text-xs ${
-              activeTab === 'cover_letter'
-                ? 'bg-brand-primary text-white shadow-revi'
-                : 'bg-surface-100 hover:bg-surface-50 text-slate-300'
-            }`}
-          >
-            <Mail className="w-4 h-4 mr-1.5" />
-            <span>3. Carta Presentación</span>
-          </button>
+        <button
+          onClick={() => setActiveTab('gaps')}
+          className={`revi-btn h-10 px-4 text-xs whitespace-nowrap shrink-0 ${
+            activeTab === 'gaps'
+              ? 'bg-brand-primary text-white shadow-revi'
+              : 'bg-surface-100 hover:bg-surface-50 text-slate-300'
+          }`}
+        >
+          <Target className="w-4 h-4 mr-1.5" />
+          <span>2. Brechas ATS ({result.ats_gaps?.length || 0})</span>
+        </button>
 
-          <button
-            onClick={() => setActiveTab('interview')}
-            className={`revi-btn h-10 px-4 text-xs ${
-              activeTab === 'interview'
-                ? 'bg-brand-primary text-white shadow-revi'
-                : 'bg-surface-100 hover:bg-surface-50 text-slate-300'
-            }`}
-          >
-            <HelpCircle className="w-4 h-4 mr-1.5" />
-            <span>4. Preguntas Técnicas</span>
-          </button>
+        <button
+          onClick={() => setActiveTab('cover_letter')}
+          className={`revi-btn h-10 px-4 text-xs whitespace-nowrap shrink-0 ${
+            activeTab === 'cover_letter'
+              ? 'bg-brand-primary text-white shadow-revi'
+              : 'bg-surface-100 hover:bg-surface-50 text-slate-300'
+          }`}
+        >
+          <Mail className="w-4 h-4 mr-1.5" />
+          <span>3. Carta Presentación</span>
+        </button>
 
-          <button
-            onClick={() => setActiveTab('observability')}
-            className={`revi-btn h-10 px-4 text-xs ${
-              activeTab === 'observability'
-                ? 'bg-brand-primary text-white shadow-revi'
-                : 'bg-surface-100 hover:bg-surface-50 text-slate-300'
-            }`}
-          >
-            <Activity className="w-4 h-4 mr-1.5" />
-            <span>5. Traza</span>
-          </button>
+        <button
+          onClick={() => setActiveTab('interview')}
+          className={`revi-btn h-10 px-4 text-xs whitespace-nowrap shrink-0 ${
+            activeTab === 'interview'
+              ? 'bg-brand-primary text-white shadow-revi'
+              : 'bg-surface-100 hover:bg-surface-50 text-slate-300'
+          }`}
+        >
+          <HelpCircle className="w-4 h-4 mr-1.5" />
+          <span>4. Preguntas Técnicas</span>
+        </button>
 
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {result.job_url && (
-            <button
-              onClick={handleAutoApply}
-              disabled={isApplying}
-              className="revi-btn h-10 px-4 text-xs bg-brand-cyan text-slate-950 font-black shadow-revi hover:bg-cyan-300 transition-all flex items-center gap-1.5 disabled:opacity-50"
-            >
-              <Zap className={`w-3.5 h-3.5 fill-slate-950 ${isApplying ? 'animate-bounce' : ''}`} />
-              <span>{isApplying ? 'Preparando Postulación...' : `Postular en ${result.company_name || 'LinkedIn'}`}</span>
-            </button>
-          )}
-
-          <button
-            onClick={onReset}
-            className="revi-btn h-10 px-4 text-xs bg-surface-200 hover:bg-surface-100 text-slate-300"
-          >
-            <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
-            <span>Nueva Auditoría</span>
-          </button>
-        </div>
+        <button
+          onClick={() => setActiveTab('observability')}
+          className={`revi-btn h-10 px-4 text-xs whitespace-nowrap shrink-0 ${
+            activeTab === 'observability'
+              ? 'bg-brand-primary text-white shadow-revi'
+              : 'bg-surface-100 hover:bg-surface-50 text-slate-300'
+          }`}
+        >
+          <Activity className="w-4 h-4 mr-1.5" />
+          <span>5. Traza</span>
+        </button>
       </div>
 
       {/* Tab 1: CV Optimizado */}

@@ -17,24 +17,20 @@ async def run_audit_node(state: Dict[str, Any]) -> Dict[str, Any]:
     api_key = state.get("effective_api_key", "")
 
     try:
-        from app.agent.llm import invoke_gemini_with_fallback
+        from app.agent.llm import invoke_gemini_with_fallback, safe_json_loads
         prompt = ATS_AUDITOR_PROMPT.format(
             job_offer_text=job_offer_text,
-            cv_text=cv_text[:3000],
+            cv_text=cv_text[:15000],
         )
         content = await invoke_gemini_with_fallback(
             prompt, 
             api_key=api_key, 
             temperature=0.3,
-            preferred_model=state.get("preferred_model")
+            preferred_model=state.get("preferred_model"),
+            provider=state.get("byok_provider")
         )
 
-        if "```json" in content:
-            content = content.split("```json")[1].split("```")[0].strip()
-        elif "```" in content:
-            content = content.split("```")[1].split("```")[0].strip()
-
-        parsed = json.loads(content)
+        parsed = safe_json_loads(content)
         gaps = parsed.get("ats_gaps", [])
         return {"ats_gaps": gaps}
     except Exception as e:

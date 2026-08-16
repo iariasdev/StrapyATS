@@ -21,11 +21,13 @@ import {
 } from '@/lib/api';
 import { 
   getSavedApiKey, 
+  getSavedProvider,
   getSavedModel,
   getSavedAnalyses, 
   saveAnalysisResult, 
   deleteSavedAnalysis,
-  clearSavedAnalyses 
+  clearSavedAnalyses,
+  setUserProfile
 } from '@/lib/utils';
 import { 
   AlertTriangle, 
@@ -48,6 +50,7 @@ export default function Home() {
 
   // Wizard state
   const [isWizardActive, setIsWizardActive] = useState<boolean>(false);
+  const [wizardMode, setWizardMode] = useState<'optimize_cv' | 'apply_job'>('apply_job');
 
   // Load API key, saved history, and check extension redirect on mount
   useEffect(() => {
@@ -110,6 +113,7 @@ export default function Home() {
         cvText,
         jobOfferText,
         byokApiKey: apiKey,
+        byokProvider: getSavedProvider(),
         preferredModel: getSavedModel(),
       });
 
@@ -121,6 +125,20 @@ export default function Home() {
 
       if (jobUrl) response.job_url = jobUrl;
       if (companyName) response.company_name = companyName;
+
+      // Automatically sync detected candidate details to profile
+      if (response.rewritten_cv) {
+        const rc = response.rewritten_cv;
+        if (rc.candidate_name || rc.candidate_email || rc.candidate_phone || rc.candidate_location || rc.candidate_linkedin) {
+          setUserProfile({
+            name: rc.candidate_name || undefined,
+            email: rc.candidate_email || undefined,
+            phone: rc.candidate_phone || undefined,
+            location: rc.candidate_location || undefined,
+            linkedin: rc.candidate_linkedin || undefined,
+          });
+        }
+      }
 
       setPipelineStage('completed');
       setAnalysisResult(response);
@@ -158,6 +176,15 @@ export default function Home() {
     const demoData = getMockDemoAnalysis();
     demoData.job_url = 'https://www.linkedin.com/jobs/view/4448318522';
     demoData.company_name = 'BipBop Labs / Revi Technologies';
+    
+    setUserProfile({
+      name: 'Alex R. Dev',
+      email: 'alex.dev@example.com',
+      phone: '+56 9 1234 5678',
+      location: 'Santiago, Chile / Remoto',
+      linkedin: 'linkedin.com/in/alexdev',
+    });
+
     setAnalysisResult(demoData);
     setErrorMessage(null);
     saveAnalysisResult(
@@ -208,7 +235,13 @@ export default function Home() {
         {!isWizardActive && !analysisResult && (
           <Hero 
             onLoadDemo={handleLoadDemo} 
+            onSelectMode={(mode) => {
+              setWizardMode(mode);
+              setIsWizardActive(true);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
             onScrollToForm={() => {
+              setWizardMode('apply_job');
               setIsWizardActive(true);
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
@@ -254,6 +287,7 @@ export default function Home() {
           />
         ) : isWizardActive ? (
           <AnalyzerForm
+            initialMode={wizardMode}
             onAnalyze={handleAnalyze}
             onLoadDemo={handleLoadDemo}
             isLoading={isLoading}

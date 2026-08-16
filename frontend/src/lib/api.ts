@@ -29,6 +29,7 @@ export interface AnalyzePayload {
   cvText?: string;
   jobOfferText: string;
   byokApiKey?: string;
+  byokProvider?: string;
   preferredModel?: string;
 }
 
@@ -51,6 +52,10 @@ export async function analyzeCV(payload: AnalyzePayload): Promise<AnalyzeRespons
 
   if (payload.byokApiKey && payload.byokApiKey.trim()) {
     formData.append('byok_api_key', payload.byokApiKey.trim());
+  }
+
+  if (payload.byokProvider && payload.byokProvider.trim()) {
+    formData.append('byok_provider', payload.byokProvider.trim());
   }
 
   if (payload.preferredModel && payload.preferredModel.trim()) {

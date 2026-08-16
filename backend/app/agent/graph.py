@@ -17,6 +17,7 @@ class AgentState(TypedDict):
     cv_text: str
     job_offer_text: str
     byok_api_key: Optional[str]
+    byok_provider: Optional[str]
     effective_api_key: str
     preferred_model: Optional[str]
     match_score: int
@@ -61,17 +62,18 @@ async def run_strapy_ats_pipeline(
     cv_text: str,
     job_offer_text: str,
     byok_api_key: Optional[str] = None,
-    preferred_model: Optional[str] = None
+    preferred_model: Optional[str] = None,
+    byok_provider: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Executes the full LangGraph pipeline with Langfuse tracing enabled if configured.
     """
     session_id = f"session_{uuid.uuid4().hex[:8]}"
-    effective_key = settings.get_effective_google_api_key(byok_api_key)
+    effective_key = (byok_api_key or "").strip() or settings.GOOGLE_API_KEY.strip()
 
     if not effective_key:
         raise ValueError(
-            "Google AI Studio API Key missing. Please set GOOGLE_API_KEY in backend/.env or provide a BYOK API Key."
+            "API Key missing. Please provide your API Key in the BYOK configuration or set GOOGLE_API_KEY in backend/.env."
         )
 
     initial_state: AgentState = {
@@ -79,6 +81,7 @@ async def run_strapy_ats_pipeline(
         "cv_text": cv_text,
         "job_offer_text": job_offer_text,
         "byok_api_key": byok_api_key,
+        "byok_provider": byok_provider or "auto",
         "effective_api_key": effective_key,
         "preferred_model": preferred_model,
         "match_score": 0,

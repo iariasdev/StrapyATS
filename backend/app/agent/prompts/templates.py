@@ -1,4 +1,4 @@
-MATCH_SCORER_PROMPT = """Eres un Auditor Experto en Sistemas ATS (Applicant Tracking Systems como Workday, Greenhouse, Taleo) y Reclutador Ejecutivo Técnico Senior en Latinoamérica y mercado remoto global.
+MATCH_SCORER_PROMPT = """Eres un Auditor Experto en Sistemas ATS (Applicant Tracking Systems como Workday, Greenhouse, Taleo, Ashby) y Reclutador Ejecutivo Senior para cualquier sector profesional (Tecnología, Finanzas, Salud, Marketing, Legal, Operaciones, etc.) en Latinoamérica y mercado global.
 
 Oferta de Trabajo Objetivo:
 ---
@@ -55,14 +55,14 @@ Proporciona entre 4 y 8 brechas de alto valor. NO incluyas texto fuera del bloqu
 """
 
 
-CV_REWRITER_PROMPT = """Eres un Consultor Senior de Redacción de Currículums Técnicos y Especialista en Optimización ATS y Metodología STAR (Situación, Tarea, Acción, Resultado).
+CV_REWRITER_PROMPT = """Eres un Consultor Senior de Redacción de Currículums y Especialista en Optimización ATS para cualquier industria o área profesional (Tecnología, Finanzas, Salud, Marketing, Ventas, Operaciones, Legal, Ingeniería, etc.).
 
 Oferta de Trabajo Objetivo:
 ---
 {job_offer_text}
 ---
 
-Currículum / CV del Candidato:
+Currículum / CV Completo del Candidato:
 ---
 {cv_text}
 ---
@@ -72,30 +72,77 @@ Brechas ATS Detectadas:
 {ats_gaps_text}
 ---
 
-Reescribe los elementos del CV para maximizar el puntaje ATS manteniendo 100% de veracidad:
-1. Redacta un Resumen Profesional de alto impacto en español que destaque años de experiencia, especialidad técnica y valor diferencial.
-2. Reescribe de 4 a 6 viñetas (bullet points) de experiencia utilizando la fórmula STAR: Verbo de Acción fuerte + Contexto/Tecnología + Métrica o Impacto Cuantificable (% de mejora, reducción de latencia, usuarios atendidos, etc.).
-3. Lista las habilidades y palabras clave incorporadas.
-4. Entrega 3 consejos accionables de formato ATS (márgenes, tipografía, estructura mono-columna).
+Instrucciones Críticas:
+1. Extrae todos los datos de contacto del candidato: Nombre completo, Título profesional (alineado a la vacante objetivo sin inventar ni falsear), Email, Teléfono, Ubicación/Ciudad, enlaces de LinkedIn, Portafolio, GitHub o web si figuran en el CV.
+2. Redacta un Resumen Profesional de alto impacto (3-5 líneas) adaptado al área profesional del candidato y a los requisitos de la vacante.
+3. CONSERVA TODOS Y CADA UNO de los proyectos, empleos, pasantías y roles laborales que figuren en el CV del candidato. ¡BAJO NINGUNA CIRCUNSTANCIA ELIMINES O RECORTES PROYECTOS O EXPERIENCIAS!
+4. Para cada puesto o proyecto laboral:
+   - Mantén el cargo ("role"), empresa/institución/proyecto ("company"), periodo ("period") y modalidad/ubicación ("location").
+   - Reescribe y pule cada viñeta ("bullets") aplicando la fórmula STAR (Verbo de acción fuerte + Contexto/Herramientas de su área + Métrica o resultado medible), alineándola estratégicamente con las palabras clave de la oferta sin alterar la verdad del perfil.
+5. CONSERVA la sección completa de EDUCACIÓN con los títulos, instituciones, periodos y distinciones del candidato.
+6. CONSERVA la sección completa de CERTIFICACIONES, licencias, cursos e idiomas (Español, Inglés, etc.).
+7. Extrae y organiza las HABILIDADES y COMPETENCIAS clave de acuerdo con su industria (Habilidades principales de su área, Herramientas/Software, Metodologías/Normativas, e Idiomas).
+8. NUNCA inventes certificaciones, cursos ni credenciales falsas (por ejemplo, si el candidato tiene AWS o Google Cloud, NO inventes certificaciones de Azure o Cisco a menos que figuren expresamente en su CV). Solo resalta y adapta las certificaciones reales del candidato.
+9. En "skills_categories" clasifica únicamente las tecnologías y competencias reales del candidato organizadas de forma lógica y limpia.
 
 Genera EXCLUSIVAMENTE un JSON válido con la siguiente estructura exacta y textos en ESPAÑOL:
 {{
-  "summary": "<Resumen profesional optimizado para ATS en español>",
-  "experience_bullets": [
-    "<Viñeta reformulada con verbo de acción fuerte, contexto y métrica de impacto en español>",
-    "<Viñeta reformulada con verbo de acción fuerte, contexto y métrica de impacto en español>",
-    "<Viñeta reformulada con verbo de acción fuerte, contexto y métrica de impacto en español>",
-    "<Viñeta reformulada con verbo de acción fuerte, contexto y métrica de impacto en español>",
-    "<Viñeta reformulada con verbo de acción fuerte, contexto y métrica de impacto en español>"
+  "candidate_name": "<Nombre completo del candidato>",
+  "candidate_title": "<Título profesional optimizado para la vacante>",
+  "candidate_email": "<Email del candidato>",
+  "candidate_phone": "<Teléfono del candidato>",
+  "candidate_location": "<Ciudad, País>",
+  "candidate_linkedin": "<URL de LinkedIn>",
+  "candidate_github": "<URL de GitHub si existe>",
+  "candidate_portfolio": "<URL de Portafolio o web si existe>",
+  "summary": "<Resumen profesional de alto impacto adaptado a la vacante>",
+  "skills_categories": {{
+    "languages": ["<Lenguaje 1>", "<Lenguaje 2>"],
+    "frontend": ["<Tecnología frontend 1>", "<Tecnología frontend 2>"],
+    "backend_cloud": ["<Tecnología backend 1>", "<Tecnología cloud 2>"],
+    "testing_tools": ["<Herramienta 1>", "<Herramienta 2>"]
+  }},
+  "skills_added": ["<Habilidad clave 1>", "<Habilidad clave 2>"],
+  "experiences": [
+    {{
+      "role": "<Cargo o Rol>",
+      "company": "<Empresa o Nombre del Proyecto>",
+      "period": "<Fechas / Periodo>",
+      "location": "<Modalidad / Ubicación>",
+      "bullets": [
+        "<Viñeta STAR optimizada 1>",
+        "<Viñeta STAR optimizada 2>"
+      ]
+    }}
   ],
-  "skills_added": ["<tecnología/habilidad 1>", "<tecnología/habilidad 2>", "<tecnología/habilidad 3>", "<tecnología/habilidad 4>"],
+  "experience_bullets": [
+    "<Top viñeta destacada 1>",
+    "<Top viñeta destacada 2>",
+    "<Top viñeta destacada 3>",
+    "<Top viñeta destacada 4>"
+  ],
+  "education": [
+    {{
+      "degree": "<Título o Carrera>",
+      "institution": "<Universidad o Institución>",
+      "period": "<Años de estudio>",
+      "details": "<Logros o detalles adicionales si existen>"
+    }}
+  ],
+  "certificaciones": [
+    "<Certificación o Logro adicional 1>",
+    "<Certificación o Logro adicional 2>"
+  ],
+  "languages_spoken": [
+    "<Idioma y nivel, ej: Español (Nativo), Inglés Intermedio B2>"
+  ],
   "formatting_tips": [
-    "<Consejo de formato ATS 1 en español>",
-    "<Consejo de formato ATS 2 en español>",
-    "<Consejo de formato ATS 3 en español>"
+    "<Consejo de formato ATS 1>",
+    "<Consejo de formato ATS 2>",
+    "<Consejo de formato ATS 3>"
   ]
 }}
-NO incluyas texto fuera del bloque JSON.
+NO incluyas explicaciones ni texto fuera del bloque JSON.
 """
 
 
