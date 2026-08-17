@@ -13,3 +13,4 @@ langgraph>=0.2.28
 langchain-core>=0.3.15
 langfuse>=2.53.0
 python-dotenv==1.0.1
+pyjwt[crypto]>=2.8.0

@@ -20,7 +20,13 @@ class Settings(BaseSettings):
     # App Environment & Limits
     ENVIRONMENT: str = "development"
     MAX_REQUESTS_PER_IP_PER_DAY: int = 2
+    MAX_REQUESTS_FREE_USER_PER_DAY: int = 10
     CHROMA_PERSIST_PATH: str = "./chroma_db"
+
+    # Supabase Auth & JWT Verification
+    SUPABASE_URL: str = ""
+    SUPABASE_ANON_KEY: str = ""
+    SUPABASE_JWT_SECRET: str = ""
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",

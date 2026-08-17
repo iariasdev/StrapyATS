@@ -2,7 +2,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.routes import analyze
+from app.api.routes import analyze, user
 from app.models.schemas import HealthResponse
 from app.vectorstore.chroma_store import vector_store
 
@@ -33,6 +33,7 @@ app.add_middleware(
 
 # Include API Routers
 app.include_router(analyze.router, prefix=settings.API_V1_STR, tags=["Analyze"])
+app.include_router(user.router, prefix=settings.API_V1_STR, tags=["User"])
 
 
 @app.get("/health", response_model=HealthResponse, tags=["Health"])

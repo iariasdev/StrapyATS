@@ -60,3 +60,73 @@ class HealthResponse(BaseModel):
     version: str
     environment: str
     chroma_db_status: str
+
+
+class ProfileBase(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    national_id: Optional[str] = None
+    years_experience: Optional[int] = 0
+    english_level: Optional[str] = "intermedio"
+    expected_salary_amount: Optional[int] = 0
+    expected_salary_currency: Optional[str] = "CLP"
+    base_cv_text: Optional[str] = None
+
+
+class ProfileUpdate(ProfileBase):
+    pass
+
+
+class ProfileResponse(ProfileBase):
+    id: str
+    plan: str = "free"
+    daily_analyses_count: int = 0
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class CVVersionCreate(BaseModel):
+    cv_json: Dict[str, Any]
+    interview_questions: Optional[List[Dict[str, Any]]] = None
+    cover_letter: Optional[str] = None
+    ats_gaps: Optional[List[Dict[str, Any]]] = None
+
+
+class JobApplicationCreate(BaseModel):
+    company_name: str
+    job_title: str
+    job_portal: Optional[str] = "manual"
+    job_url: Optional[str] = None
+    ats_match_score: Optional[int] = 0
+    status: Optional[str] = "saved"
+    applied_at: Optional[str] = None
+    notes: Optional[str] = None
+    cv_version: Optional[CVVersionCreate] = None
+
+
+class JobApplicationUpdate(BaseModel):
+    company_name: Optional[str] = None
+    job_title: Optional[str] = None
+    job_portal: Optional[str] = None
+    job_url: Optional[str] = None
+    ats_match_score: Optional[int] = None
+    status: Optional[str] = None
+    applied_at: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class JobApplicationResponse(BaseModel):
+    id: str
+    user_id: str
+    company_name: str
+    job_title: str
+    job_portal: Optional[str] = "manual"
+    job_url: Optional[str] = None
+    ats_match_score: Optional[int] = 0
+    status: str = "saved"
+    applied_at: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    cv_versions: Optional[List[Dict[str, Any]]] = None

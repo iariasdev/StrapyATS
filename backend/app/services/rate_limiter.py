@@ -7,50 +7,79 @@ import logging
 logger = logging.getLogger("strapy_ats.rate_limiter")
 
 
-class IPRateLimiter:
-    def __init__(self, max_requests: int = 2):
-        self.max_requests = max_requests
-        # Store format: ip -> (count, date)
+class FreemiumRateLimiter:
+    def __init__(self, anon_limit: int = 2, free_user_limit: int = 10):
+        self.anon_limit = anon_limit
+        self.free_user_limit = free_user_limit
+        # Store format: key (ip or user_id) -> (count, date)
         self.records: Dict[str, Tuple[int, date]] = {}
 
-    def check_and_increment(self, ip_address: str, byok_key: Optional[str] = None) -> Tuple[bool, int]:
+    def check_and_increment(
+        self,
+        ip_address: str,
+        user_id: Optional[str] = None,
+        plan: str = "anon",
+        byok_key: Optional[str] = None
+    ) -> Tuple[bool, int]:
         """
-        Checks if IP has remaining quota today.
-        If BYOK API key is provided, bypass rate limit completely.
-        Returns tuple: (is_allowed, remaining_quota)
+        Checks if the request is within daily quota.
+        - Pro plan: unlimited
+        - BYOK key: unlimited
+        - Free registered user (user_id): 10 requests/day
+        - Anonymous visitor (ip_address): 2 requests/day
         """
-        if byok_key and len(byok_key.strip()) > 10:
-            logger.info(f"Bypassing rate limit for IP {ip_address} (BYOK active)")
+        # Pro users and BYOK have unlimited quota
+        if plan.lower() == "pro":
             return True, 999999
 
-        # Bypass rate limit for localhost / development
-        if ip_address in ("127.0.0.1", "localhost", "::1"):
+        if byok_key and len(byok_key.strip()) > 10:
+            logger.info(f"Bypassing rate limit for {ip_address} (BYOK provided)")
             return True, 999999
+
+        # Local development bypass
+        if settings.ENVIRONMENT == "development" and ip_address in ("127.0.0.1", "localhost", "::1"):
+            if not user_id:
+                # In development without user, allow unlimited or high limit
+                return True, 999999
 
         today = date.today()
-        count, last_date = self.records.get(ip_address, (0, today))
+
+        if user_id:
+            track_key = f"user:{user_id}"
+            limit = self.free_user_limit
+        else:
+            track_key = f"ip:{ip_address}"
+            limit = self.anon_limit
+
+        count, last_date = self.records.get(track_key, (0, today))
 
         if last_date != today:
-            # Reset daily quota for a new day
             count = 0
             last_date = today
 
-        if count >= self.max_requests:
+        if count >= limit:
             remaining = 0
-            logger.warning(f"Rate limit exceeded for IP {ip_address}: {count}/{self.max_requests}")
+            logger.warning(f"Rate limit reached for {track_key}: {count}/{limit}")
             return False, remaining
 
         count += 1
-        self.records[ip_address] = (count, today)
-        remaining = self.max_requests - count
+        self.records[track_key] = (count, today)
+        remaining = limit - count
         return True, remaining
 
-    def get_remaining(self, ip_address: str) -> int:
+    def get_remaining(self, ip_address: str, user_id: Optional[str] = None, plan: str = "anon") -> int:
+        if plan.lower() == "pro":
+            return 999999
         today = date.today()
-        count, last_date = self.records.get(ip_address, (0, today))
+        track_key = f"user:{user_id}" if user_id else f"ip:{ip_address}"
+        limit = self.free_user_limit if user_id else self.anon_limit
+        count, last_date = self.records.get(track_key, (0, today))
         if last_date != today:
-            return self.max_requests
-        return max(0, self.max_requests - count)
+            return limit
+        return max(0, limit - count)
 
 
-rate_limiter = IPRateLimiter(max_requests=settings.MAX_REQUESTS_PER_IP_PER_DAY)
+rate_limiter = FreemiumRateLimiter(
+    anon_limit=settings.MAX_REQUESTS_PER_IP_PER_DAY,
+    free_user_limit=settings.MAX_REQUESTS_FREE_USER_PER_DAY
+)

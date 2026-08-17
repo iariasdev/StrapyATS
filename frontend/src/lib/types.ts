@@ -112,3 +112,50 @@ export type PipelineStage =
   | 'generating_outputs'
   | 'completed'
   | 'error';
+
+export type JobApplicationStatus = 'saved' | 'applied' | 'interview' | 'offer' | 'rejected';
+export type UserPlan = 'free' | 'pro';
+
+export interface CVVersion {
+  id?: string;
+  application_id?: string;
+  user_id?: string;
+  cv_json: RewrittenCV;
+  interview_questions?: InterviewQuestion[];
+  cover_letter?: string;
+  ats_gaps?: ATSGap[];
+  created_at?: string;
+}
+
+export interface JobApplication {
+  id: string;
+  user_id: string;
+  company_name: string;
+  job_title: string;
+  job_portal?: string;
+  job_url?: string | null;
+  ats_match_score?: number;
+  status: JobApplicationStatus;
+  applied_at?: string | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  cv_versions?: CVVersion[];
+}
+
+export interface UserProfileDB {
+  id: string;
+  full_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  national_id?: string | null;
+  years_experience?: number;
+  english_level?: string;
+  expected_salary_amount?: number;
+  expected_salary_currency?: string;
+  base_cv_text?: string | null;
+  plan?: UserPlan;
+  daily_analyses_count?: number;
+  created_at?: string;
+  updated_at?: string;
+}

@@ -1,10 +1,11 @@
 import logging
 from typing import Optional
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request, Body
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request, Body, Depends
 from app.models.schemas import AnalyzeResponse, AnalyzeRequest, ATSGap, InterviewQuestion, RewrittenCV
 from app.services.pdf_service import extract_text_from_pdf
 from app.services.scraper_service import scrape_job_from_url
 from app.services.rate_limiter import rate_limiter
+from app.core.auth import get_optional_current_user, CurrentUser
 from app.agent.graph import run_strapy_ats_pipeline
 
 logger = logging.getLogger("strapy_ats.api.analyze")
@@ -20,27 +21,43 @@ async def analyze_cv(
     byok_api_key: Optional[str] = Form(None, description="Optional: user's own API Key (BYOK)"),
     byok_provider: Optional[str] = Form(None, description="Optional: AI provider ('gemini' | 'openai' | 'anthropic' | 'deepseek' | 'groq' | 'auto')"),
     model_name: Optional[str] = Form(None, description="Optional: user's preferred model"),
+    current_user: Optional[CurrentUser] = Depends(get_optional_current_user),
 ):
     """
     Main endpoint: receives a CV (PDF or raw text) and target job offer text,
     executes the LangGraph multi-agent pipeline and returns complete ATS analysis.
+    Supports Freemium tier quotas:
+    - Anon: 2/day
+    - Free user: 10/day
+    - Pro user: Unlimited
     """
     # 1. Extract Client IP and verify Rate Limit
     client_ip = request.client.host if request.client else "127.0.0.1"
-    # Header check for proxies/Cloud Run (X-Forwarded-For)
     forwarded_for = request.headers.get("x-forwarded-for")
     if forwarded_for:
         client_ip = forwarded_for.split(",")[0].strip()
 
-    is_allowed, remaining_quota = rate_limiter.check_and_increment(client_ip, byok_key=byok_api_key)
+    user_id = current_user.user_id if current_user else None
+    plan = current_user.plan if current_user else "anon"
+
+    is_allowed, remaining_quota = rate_limiter.check_and_increment(
+        client_ip,
+        user_id=user_id,
+        plan=plan,
+        byok_key=byok_api_key
+    )
+
     if not is_allowed:
-        raise HTTPException(
-            status_code=429,
-            detail=(
-                "Daily free analysis limit reached for your IP (2 requests/day). "
-                "Please enter your own free API Key (Google AI Studio, OpenAI, Claude, DeepSeek, Groq) in BYOK to continue immediately."
+        if current_user:
+            raise HTTPException(
+                status_code=429,
+                detail="Límite diario alcanzado para tu cuenta Free (10 análisis/día). Actualiza a StrapyATS Pro para análisis ilimitados."
             )
-        )
+        else:
+            raise HTTPException(
+                status_code=429,
+                detail="Límite diario alcanzado para usuarios anónimos (2 análisis/día). Inicia sesión con Google para obtener 10 análisis/día o pásate a Pro."
+            )
 
     # 2. Extract CV Text
     final_cv_text = ""
@@ -142,7 +159,8 @@ async def analyze_cv(
 @router.post("/analyze-json", response_model=AnalyzeResponse)
 async def analyze_cv_json(
     request: Request,
-    payload: AnalyzeRequest
+    payload: AnalyzeRequest,
+    current_user: Optional[CurrentUser] = Depends(get_optional_current_user)
 ):
     """
     JSON alternate endpoint for client applications or Chrome Extension.
@@ -152,12 +170,27 @@ async def analyze_cv_json(
     if forwarded_for:
         client_ip = forwarded_for.split(",")[0].strip()
 
-    is_allowed, remaining_quota = rate_limiter.check_and_increment(client_ip, byok_key=payload.byok_api_key)
+    user_id = current_user.user_id if current_user else None
+    plan = current_user.plan if current_user else "anon"
+
+    is_allowed, remaining_quota = rate_limiter.check_and_increment(
+        client_ip,
+        user_id=user_id,
+        plan=plan,
+        byok_key=payload.byok_api_key
+    )
+
     if not is_allowed:
-        raise HTTPException(
-            status_code=429,
-            detail="Daily free limit reached for your IP (2 requests/day). Provide BYOK API Key to continue."
-        )
+        if current_user:
+            raise HTTPException(
+                status_code=429,
+                detail="Límite diario alcanzado para tu cuenta Free (10 análisis/día). Actualiza a StrapyATS Pro para análisis ilimitados."
+            )
+        else:
+            raise HTTPException(
+                status_code=429,
+                detail="Límite diario alcanzado para usuarios anónimos (2 análisis/día). Inicia sesión con Google para obtener 10 análisis/día o pásate a Pro."
+            )
 
     if not payload.cv_text or len(payload.cv_text.strip()) < 20:
         raise HTTPException(status_code=400, detail="Please provide cv_text in payload.")

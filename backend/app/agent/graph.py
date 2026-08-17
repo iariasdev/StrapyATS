@@ -1,7 +1,8 @@
 import os
 import uuid
 import logging
-from typing import List, Dict, Any, Optional, TypedDict
+from typing import List, Dict, Any, Optional
+from typing_extensions import TypedDict
 from langgraph.graph import StateGraph, END
 from app.core.config import settings
 from app.agent.nodes.match_node import run_match_node

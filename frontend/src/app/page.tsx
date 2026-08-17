@@ -6,10 +6,10 @@ import { Hero } from '@/components/Hero';
 import { AnalyzerForm } from '@/components/AnalyzerForm';
 import { ResultsDashboard } from '@/components/ResultsDashboard';
 import { TechProof } from '@/components/TechProof';
-import { BYOKModal } from '@/components/BYOKModal';
 import { HistoryModal } from '@/components/HistoryModal';
 import { ChromeExtensionModal } from '@/components/ChromeExtensionModal';
 import { Footer } from '@/components/Footer';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   AnalyzeResponse, 
   SavedAnalysis, 
@@ -20,7 +20,6 @@ import {
   getMockDemoAnalysis 
 } from '@/lib/api';
 import { 
-  getSavedApiKey, 
   getSavedProvider,
   getSavedModel,
   getSavedAnalyses, 
@@ -36,7 +35,7 @@ import {
 } from 'lucide-react';
 
 export default function Home() {
-  const [apiKey, setApiKey] = useState<string>('');
+  const { getAccessToken } = useAuth();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [pipelineStage, setPipelineStage] = useState<PipelineStage>('idle');
   const [analysisResult, setAnalysisResult] = useState<AnalyzeResponse | null>(null);
@@ -44,7 +43,6 @@ export default function Home() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Modals
-  const [isByokOpen, setIsByokOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isExtensionGuideOpen, setIsExtensionGuideOpen] = useState(false);
 
@@ -52,9 +50,7 @@ export default function Home() {
   const [isWizardActive, setIsWizardActive] = useState<boolean>(false);
   const [wizardMode, setWizardMode] = useState<'optimize_cv' | 'apply_job'>('apply_job');
 
-  // Load API key, saved history, and check extension redirect on mount
   useEffect(() => {
-    setApiKey(getSavedApiKey());
     setSavedAnalyses(getSavedAnalyses());
 
     // Check if user came from Chrome extension
@@ -68,8 +64,6 @@ export default function Home() {
           setIsWizardActive(true);
         }
       } else {
-        // Only keep it if it was explicitly sent from the extension right now
-        // Otherwise, clear it so it doesn't stick around on normal visits
         localStorage.removeItem('strapyats_extracted_job');
       }
     }
@@ -108,11 +102,13 @@ export default function Home() {
     const stageTimer5 = setTimeout(() => setPipelineStage('generating_outputs'), 5800);
 
     try {
+      const token = await getAccessToken();
+
       const response = await analyzeCV({
         cvFile,
         cvText,
         jobOfferText,
-        byokApiKey: apiKey,
+        authToken: token,
         byokProvider: getSavedProvider(),
         preferredModel: getSavedModel(),
       });
@@ -222,10 +218,8 @@ export default function Home() {
       
       {/* Navigation Bar */}
       <Navbar
-        onOpenByok={() => setIsByokOpen(true)}
         onOpenHistory={() => setIsHistoryOpen(true)}
         onOpenExtensionGuide={() => setIsExtensionGuideOpen(true)}
-        apiKey={apiKey}
       />
 
       {/* Main Container */}
@@ -292,8 +286,6 @@ export default function Home() {
             onLoadDemo={handleLoadDemo}
             isLoading={isLoading}
             pipelineStage={pipelineStage}
-            currentApiKey={apiKey}
-            onOpenByok={() => setIsByokOpen(true)}
             onOpenExtensionGuide={() => setIsExtensionGuideOpen(true)}
             onCancel={() => setIsWizardActive(false)}
           />
@@ -308,13 +300,6 @@ export default function Home() {
       <Footer />
 
       {/* Modals */}
-      <BYOKModal
-        isOpen={isByokOpen}
-        onClose={() => setIsByokOpen(false)}
-        currentApiKey={apiKey}
-        onApiKeyChange={(newKey) => setApiKey(newKey)}
-      />
-
       <HistoryModal
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
@@ -332,4 +317,3 @@ export default function Home() {
     </div>
   );
 }
-

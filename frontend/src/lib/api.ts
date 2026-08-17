@@ -1,4 +1,4 @@
-import { AnalyzeResponse, HealthResponse } from './types';
+import { AnalyzeResponse, HealthResponse, UserProfileDB, JobApplication } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1';
 const ROOT_URL = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
@@ -28,6 +28,7 @@ export interface AnalyzePayload {
   cvFile?: File | null;
   cvText?: string;
   jobOfferText: string;
+  authToken?: string | null;
   byokApiKey?: string;
   byokProvider?: string;
   preferredModel?: string;
@@ -63,10 +64,16 @@ export async function analyzeCV(payload: AnalyzePayload): Promise<AnalyzeRespons
   }
 
   const endpoint = `${API_BASE_URL}/analyze`;
+  const headers: Record<string, string> = {};
+
+  if (payload.authToken) {
+    headers['Authorization'] = `Bearer ${payload.authToken}`;
+  }
 
   try {
     const res = await fetch(endpoint, {
       method: 'POST',
+      headers,
       body: formData,
     });
 
@@ -93,6 +100,101 @@ export async function analyzeCV(payload: AnalyzePayload): Promise<AnalyzeRespons
       );
     }
     throw error;
+  }
+}
+
+export async function getUserProfile(token: string): Promise<UserProfileDB> {
+  const res = await fetch(`${API_BASE_URL}/user/profile`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json',
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error('Error al obtener perfil de usuario');
+  }
+  return await res.json();
+}
+
+export async function updateUserProfile(profile: Partial<UserProfileDB>, token: string): Promise<UserProfileDB> {
+  const res = await fetch(`${API_BASE_URL}/user/profile`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify(profile),
+  });
+
+  if (!res.ok) {
+    throw new Error('Error al actualizar perfil de usuario');
+  }
+  return await res.json();
+}
+
+export async function getJobApplications(token: string): Promise<JobApplication[]> {
+  const res = await fetch(`${API_BASE_URL}/user/applications`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json',
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error('Error al obtener postulaciones');
+  }
+  return await res.json();
+}
+
+export async function createJobApplication(app: any, token: string): Promise<JobApplication> {
+  const res = await fetch(`${API_BASE_URL}/user/applications`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify(app),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.detail || 'Error al guardar la postulación');
+  }
+  return await res.json();
+}
+
+export async function updateJobApplication(id: string, app: Partial<JobApplication>, token: string): Promise<JobApplication> {
+  const res = await fetch(`${API_BASE_URL}/user/applications/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify(app),
+  });
+
+  if (!res.ok) {
+    throw new Error('Error al actualizar postulación');
+  }
+  return await res.json();
+}
+
+export async function deleteJobApplication(id: string, token: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/user/applications/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error('Error al eliminar postulación');
   }
 }
 
