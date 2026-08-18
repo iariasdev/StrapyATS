@@ -1,14 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Navbar } from '@/components/Navbar';
-import { Hero } from '@/components/Hero';
-import { AnalyzerForm } from '@/components/AnalyzerForm';
-import { ResultsDashboard } from '@/components/ResultsDashboard';
-import { TechProof } from '@/components/TechProof';
-import { HistoryModal } from '@/components/HistoryModal';
-import { ChromeExtensionModal } from '@/components/ChromeExtensionModal';
-import { Footer } from '@/components/Footer';
+import { Navbar, Footer, HistoryModal, ChromeExtensionModal } from '@/components';
+import { Hero, TechProof } from '@/features/home';
+import { AnalyzerForm, ResultsDashboard } from '@/features/analyzer';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   AnalyzeResponse, 

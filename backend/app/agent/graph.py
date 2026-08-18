@@ -1,8 +1,7 @@
 import os
 import uuid
 import logging
-from typing import List, Dict, Any, Optional
-from typing_extensions import TypedDict
+from typing import List, Dict, Any, Optional, TypedDict
 from langgraph.graph import StateGraph, END
 from app.core.config import settings
 from app.agent.nodes.match_node import run_match_node
@@ -38,7 +37,7 @@ def build_strapy_ats_graph():
     Constructs the LangGraph deterministic multi-node workflow:
     Match Scorer -> ATS Auditor -> CV Rewriter & Cover Letter -> Interview Simulator
     """
-    workflow = StateGraph(AgentState)
+    workflow = StateGraph(AgentState)  # type: ignore[arg-type]
 
     # Register Nodes
     workflow.add_node("match_scorer", run_match_node)

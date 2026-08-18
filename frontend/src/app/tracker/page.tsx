@@ -1,11 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Navbar } from '@/components/Navbar';
-import { KanbanBoard } from '@/components/KanbanBoard';
-import { Footer } from '@/components/Footer';
-import { HistoryModal } from '@/components/HistoryModal';
-import { ChromeExtensionModal } from '@/components/ChromeExtensionModal';
+import React, { useState, useEffect } from 'react';
+import { Navbar, Footer, HistoryModal, ChromeExtensionModal } from '@/components';
+import { KanbanBoard } from '@/features/tracker';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSavedAnalyses, deleteSavedAnalysis, clearSavedAnalyses } from '@/lib/utils';
 import { SavedAnalysis } from '@/lib/types';
