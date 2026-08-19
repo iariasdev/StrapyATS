@@ -78,7 +78,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
         
         {/* Brand & CierraLab Tool Tag */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2.5 sm:gap-4">
           <Link href="/" className="flex items-center gap-3 cursor-pointer hover:opacity-85 transition-opacity">
             <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-green-400 to-blue-500 ring-1 ring-white/30 dark:ring-white/20 shrink-0 shadow-revi-sm flex items-center justify-center p-0.5">
               <img 
@@ -87,17 +87,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="w-full h-full object-cover rounded-full" 
               />
             </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-xl tracking-tight text-white font-display">
-                  Strapy<span className="text-brand-cyan">ATS</span>
-                </span>
-                <span className="hidden sm:inline-flex items-center text-[10px] font-bold text-slate-300 bg-surface-100 border border-surface-border px-2 py-0.5 uppercase tracking-wider">
-                  CierraLab Tool
-                </span>
-              </div>
-            </div>
+            <span className="font-extrabold text-xl tracking-tight text-white font-display">
+              Strapy<span className="text-brand-cyan">ATS</span>
+            </span>
           </Link>
+
+          <a
+            href="https://www.cierralab.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden sm:inline-flex items-center text-[10px] font-bold text-slate-300 bg-surface-100 border border-surface-border px-2 py-0.5 uppercase tracking-wider hover:text-white hover:border-brand-cyan/60 hover:bg-surface-50 transition-all cursor-pointer"
+            title="Visitar CierraLab (www.cierralab.com)"
+          >
+            CierraLab Tool
+          </a>
 
           {/* Navigation Links */}
           <nav className="hidden md:flex items-center gap-1.5 ml-4 text-xs font-semibold text-slate-300">

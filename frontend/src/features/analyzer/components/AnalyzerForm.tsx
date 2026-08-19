@@ -292,11 +292,11 @@ Objetivos clave:
   const getStageMessage = (stage: PipelineStage): string => {
     switch (stage) {
       case 'uploading':
-        return 'Iniciando ingesta en LangGraph Engine...';
+        return 'Iniciando análisis del currículum...';
       case 'extracting_pdf':
         return 'Extrayendo texto y estructura del documento PDF...';
       case 'vectorizing_chroma':
-        return 'Calculando embeddings semánticos en ChromaDB...';
+        return 'Analizando compatibilidad semántica y palabras clave...';
       case 'ats_gap_audit':
         return 'Auditando requisitos y estándares de formato ATS...';
       case 'langgraph_rewrite':

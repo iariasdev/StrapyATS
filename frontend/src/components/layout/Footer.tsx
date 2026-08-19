@@ -11,10 +11,10 @@ export const Footer: React.FC = () => {
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Main Footer Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
           
           {/* Brand & CierraLab Attribution */}
-          <div className="md:col-span-2 space-y-4">
+          <div className="md:col-span-7 space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-green-400 to-blue-500 ring-1 ring-white/30 dark:ring-white/20 shrink-0 shadow-revi-sm flex items-center justify-center p-0.5">
                 <img 
@@ -26,31 +26,37 @@ export const Footer: React.FC = () => {
               <span className="font-extrabold text-lg text-white font-display">
                 Strapy<span className="text-brand-cyan">ATS</span>
               </span>
-              <span className="text-[10px] font-bold text-slate-300 bg-surface-100 border border-surface-border px-2 py-0.5 uppercase tracking-wider font-mono">
+              <a
+                href="https://www.cierralab.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] font-bold text-slate-300 bg-surface-100 border border-surface-border hover:border-brand-cyan/60 hover:text-white hover:bg-surface-50 px-2 py-0.5 uppercase tracking-wider font-mono transition-all cursor-pointer"
+                title="Visitar CierraLab (www.cierralab.com)"
+              >
                 CierraLab Tool
-              </span>
+              </a>
             </div>
             
-            <p className="text-xs text-slate-400 leading-relaxed max-w-sm font-medium">
+            <p className="text-xs text-slate-400 leading-relaxed max-w-md font-medium">
               Herramienta oficial desarrollada por <strong>CierraLab</strong> para optimización de currículums y auditorías técnicas de reclutamiento para Chile y Latinoamérica.
             </p>
 
             <div className="flex items-center gap-3 pt-2">
               <a
-                href="https://cierralab.com"
+                href="https://www.cierralab.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="revi-btn h-9 px-3.5 bg-surface-100 hover:bg-surface-50 text-xs font-bold text-slate-200"
+                className="revi-btn h-9 px-3.5 bg-surface-100 hover:bg-surface-50 text-xs font-bold text-slate-200 inline-flex items-center"
               >
                 <span>CierraLab.com</span>
                 <ExternalLink className="w-3 h-3 ml-1.5 text-brand-cyan" />
               </a>
 
               <a
-                href="https://github.com"
+                href="https://github.com/iariasdev"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="revi-btn h-9 px-3.5 bg-surface-100 hover:bg-surface-50 text-xs font-bold text-slate-200"
+                className="revi-btn h-9 px-3.5 bg-surface-100 hover:bg-surface-50 text-xs font-bold text-slate-200 inline-flex items-center"
               >
                 <Github className="w-3.5 h-3.5 mr-1.5" />
                 <span>GitHub</span>
@@ -58,32 +64,8 @@ export const Footer: React.FC = () => {
             </div>
           </div>
 
-          {/* Ecosistema */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase text-white tracking-wider font-mono">
-              Ecosistema
-            </h4>
-            <ul className="space-y-2 text-xs font-medium text-slate-400">
-              <li>
-                <a href="https://cierralab.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
-                  CierraLab AI Studio
-                </a>
-              </li>
-              <li>
-                <a href="https://aistudio.google.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
-                  Google Gemini AI Studio
-                </a>
-              </li>
-              <li>
-                <a href="https://langfuse.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
-                  Langfuse Observability
-                </a>
-              </li>
-            </ul>
-          </div>
-
           {/* Legal / Zero Data Retention */}
-          <div className="space-y-3">
+          <div className="md:col-span-5 space-y-3">
             <h4 className="text-xs font-bold uppercase text-white tracking-wider font-mono">
               Privacidad &amp; Seguridad
             </h4>
@@ -105,11 +87,18 @@ export const Footer: React.FC = () => {
           <div className="flex items-center gap-2">
             <span>© {currentYear} StrapyATS</span>
             <span>•</span>
-            <span>Una herramienta de CierraLab</span>
+            <a 
+              href="https://www.cierralab.com" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="hover:text-slate-300 transition-colors"
+            >
+              Una herramienta de CierraLab
+            </a>
           </div>
 
-          <div className="flex items-center gap-1 font-mono text-[11px] text-slate-500">
-            <span>FASTAPI + LANGGRAPH + CHROMADB</span>
+          <div className="flex items-center gap-1 text-[11px] text-slate-500">
+            <span>Todos los derechos reservados</span>
           </div>
         </div>
 
